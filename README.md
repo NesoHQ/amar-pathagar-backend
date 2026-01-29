@@ -83,38 +83,38 @@ backend/
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register user
-- `POST /api/auth/login` - Login user
-- `GET /api/me` - Get current user (protected)
+- `POST /api/v1/auth/register` - Register user
+- `POST /api/v1/auth/login` - Login user
+- `GET /api/v1/me` - Get current user (protected)
 
 ### Books
-- `GET /api/books` - List books
-- `GET /api/books/:id` - Get book
-- `POST /api/books` - Create book (protected)
-- `PATCH /api/books/:id` - Update book (protected)
-- `DELETE /api/books/:id` - Delete book (protected)
+- `GET /api/v1/books` - List books
+- `GET /api/v1/books/:id` - Get book
+- `POST /api/v1/books` - Create book (protected)
+- `PATCH /api/v1/books/:id` - Update book (protected)
+- `DELETE /api/v1/books/:id` - Delete book (protected)
 
 ### Users
-- `GET /api/users/:id/profile` - Get user profile
-- `GET /api/leaderboard` - Get leaderboard
+- `GET /api/v1/users/:id/profile` - Get user profile
+- `GET /api/v1/leaderboard` - Get leaderboard
 
 ### Reading Ideas
-- `POST /api/ideas` - Create idea (protected)
-- `GET /api/books/:bookId/ideas` - Get ideas for book
-- `POST /api/ideas/:id/vote` - Vote on idea (protected)
+- `POST /api/v1/ideas` - Create idea (protected)
+- `GET /api/v1/books/:bookId/ideas` - Get ideas for book
+- `POST /api/v1/ideas/:id/vote` - Vote on idea (protected)
 
 ### Reviews
-- `POST /api/reviews` - Create review (protected)
-- `GET /api/users/:id/reviews` - Get user reviews
+- `POST /api/v1/reviews` - Create review (protected)
+- `GET /api/v1/users/:id/reviews` - Get user reviews
 
 ### Donations
-- `POST /api/donations` - Create donation (protected)
-- `GET /api/donations` - List donations
+- `POST /api/v1/donations` - Create donation (protected)
+- `GET /api/v1/donations` - List donations
 
 ### Bookmarks
-- `POST /api/bookmarks` - Create bookmark (protected)
-- `DELETE /api/bookmarks/:bookId` - Delete bookmark (protected)
-- `GET /api/bookmarks` - Get user bookmarks (protected)
+- `POST /api/v1/bookmarks` - Create bookmark (protected)
+- `DELETE /api/v1/bookmarks/:bookId` - Delete bookmark (protected)
+- `GET /api/v1/bookmarks` - Get user bookmarks (protected)
 
 ## Development Commands
 
