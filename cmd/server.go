@@ -87,7 +87,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	})
 
 	// API routes
-	api := router.Group("/api")
+	api := router.Group("/api/v1")
 	{
 		// Public routes
 		authhandler.RegisterPublicRoutes(api, authHandler)
