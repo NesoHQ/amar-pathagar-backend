@@ -3,7 +3,7 @@
 # --------------------------------------------------
 # Base Stage - Common dependencies
 # --------------------------------------------------
-FROM golang:1.23-alpine AS base
+FROM golang:1.25-alpine AS base
 WORKDIR /app
 
 # Install build dependencies

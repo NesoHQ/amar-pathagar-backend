@@ -76,6 +76,6 @@ func (h *Handler) Vote(c *gin.Context) {
 
 func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 	r.POST("/ideas", h.Create)
-	r.GET("/books/:bookId/ideas", h.GetByBook)
+	r.GET("/ideas/book/:bookId", h.GetByBook)
 	r.POST("/ideas/:id/vote", h.Vote)
 }
