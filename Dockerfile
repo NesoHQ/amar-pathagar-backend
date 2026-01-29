@@ -26,8 +26,9 @@ COPY . .
 # --------------------------------------------------
 FROM base AS dev
 
-# Install air for hot reload
-RUN go install github.com/air-verse/air@latest
+# Install air for hot reload and goose for migrations
+RUN go install github.com/air-verse/air@latest && \
+    go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # Expose port
 EXPOSE 8080

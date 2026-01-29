@@ -1,5 +1,4 @@
 # Development Docker Compose for Amar Pathagar Backend
-version: '3.8'
 
 services:
   postgres:
@@ -13,7 +12,6 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-library_user} -d ${DB_NAME:-online_library}"]
       interval: 5s
@@ -35,6 +33,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-library_pass}
       DB_NAME: ${DB_NAME:-online_library}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
+      DATABASE_URL: postgres://${DB_USER:-library_user}:${DB_PASSWORD:-library_pass}@postgres:5432/${DB_NAME:-online_library}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
       PORT: ${PORT:-8080}
       GIN_MODE: debug
@@ -50,7 +49,7 @@ services:
         condition: service_healthy
     networks:
       - amar-pathagar-dev-network
-    command: air -c .air.toml
+    command: sh -c "goose -dir migrations postgres \"$$DATABASE_URL\" up && air -c .air.toml"
 
 volumes:
   postgres_dev_data:

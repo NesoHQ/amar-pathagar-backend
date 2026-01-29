@@ -89,8 +89,7 @@ db-reset: ## Reset database (drop and recreate)
 	@sleep 3
 	docker compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d postgres -c "DROP DATABASE IF EXISTS $(DB_NAME);"
 	docker compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d postgres -c "CREATE DATABASE $(DB_NAME);"
-	docker compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d $(DB_NAME) -f /docker-entrypoint-initdb.d/init.sql
-	@echo "✅ Database reset complete"
+	@echo "✅ Database reset complete. Run 'make migrate-up' to apply migrations."
 
 .PHONY: db-backup
 db-backup: ## Backup database
@@ -103,6 +102,35 @@ db-restore: ## Restore database from backup (usage: make db-restore FILE=backups
 	@if [ -z "$(FILE)" ]; then echo "❌ Usage: make db-restore FILE=backups/backup.sql"; exit 1; fi
 	docker compose -f $(COMPOSE_DEV_FILE) exec -T postgres psql -U $(DB_USER) $(DB_NAME) < $(FILE)
 	@echo "✅ Database restored from $(FILE)"
+
+# --------------------------------------------------
+# Database Migrations (Goose)
+# --------------------------------------------------
+MIGRATIONS_DIR = migrations
+DATABASE_URL = postgres://$(DB_USER):$(DB_PASSWORD)@localhost:$(DB_PORT)/$(DB_NAME)?sslmode=disable
+
+.PHONY: migrate-status
+migrate-status: ## Show migration status
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" status
+
+.PHONY: migrate-up
+migrate-up: ## Run migrations
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+
+.PHONY: migrate-down
+migrate-down: ## Roll back last migration
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down
+
+.PHONY: migrate-reset
+migrate-reset: ## Reset and re-run migrations
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" reset
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+
+.PHONY: migration
+migration: ## Create a new migration file (usage: make migration NAME=create_users)
+	@if [ -z "$(NAME)" ]; then echo "❌ Usage: make migration NAME=create_users"; exit 1; fi
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) create $(NAME) sql
+	@echo "✅ Migration created in $(MIGRATIONS_DIR)/"
 
 # --------------------------------------------------
 # Local Development (without Docker)
