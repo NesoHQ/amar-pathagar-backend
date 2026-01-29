@@ -1,0 +1,61 @@
+# Development Docker Compose for Amar Pathagar Backend
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: amar-pathagar-db-dev
+    environment:
+      POSTGRES_DB: ${DB_NAME:-online_library}
+      POSTGRES_USER: ${DB_USER:-library_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-library_pass}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-library_user} -d ${DB_NAME:-online_library}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - amar-pathagar-dev-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: amar-pathagar-backend-dev
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-library_user}
+      DB_PASSWORD: ${DB_PASSWORD:-library_pass}
+      DB_NAME: ${DB_NAME:-online_library}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
+      PORT: ${PORT:-8080}
+      GIN_MODE: debug
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Exclude tmp directory (air build artifacts)
+      - /app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - amar-pathagar-dev-network
+    command: air -c .air.toml
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  amar-pathagar-dev-network:
+    driver: bridge

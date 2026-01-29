@@ -1,0 +1,49 @@
+# Environment files
+.env
+.env.local
+.env.dev
+.env.prod
+
+# Temporary files
+tmp/
+*.tmp
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+amar-pathagar-api
+server
+
+# Dependency directories
+vendor/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# Logs
+*.log
+logs/
+build-errors.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage.out
+coverage.html
+
+# Backups
+backups/
+
+# Air build artifacts
+tmp/

@@ -1,0 +1,234 @@
+# Amar Pathagar Backend
+
+A trust-based book sharing platform backend built with **Clean Architecture** and **Domain-Driven Design**.
+
+## Architecture
+
+This backend follows **eventrizo-backend's clean architecture pattern** with:
+
+- **Domain Layer** - Pure business entities with no dependencies
+- **Service Layer** - Business logic with port interfaces
+- **Repository Layer** - Data access implementations
+- **REST Layer** - HTTP delivery (handlers, middleware, responses)
+- **Infrastructure Layer** - External dependencies (database, logger)
+
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Language** | Go 1.23 |
+| **Framework** | Gin |
+| **Database** | PostgreSQL 15 |
+| **DB Driver** | lib/pq |
+| **Logging** | Zap (structured) |
+| **Auth** | JWT |
+| **Hot Reload** | Air |
+| **Container** | Docker |
+
+## Quick Start
+
+```bash
+# 1. Copy environment file
+cp .env.example .env
+
+# 2. Start development (with hot reload)
+make dev
+
+# 3. Test the API
+curl http://localhost:8080/health
+```
+
+## Project Structure
+
+```
+backend/
+├── cmd/
+│   ├── main.go              # Bootstrap
+│   └── server.go            # Dependency injection
+├── internal/
+│   ├── domain/              # Domain entities (8 files)
+│   │   ├── error.go
+│   │   ├── user.go
+│   │   ├── book.go
+│   │   ├── idea.go
+│   │   ├── review.go
+│   │   ├── donation.go
+│   │   ├── bookmark.go
+│   │   └── notification.go
+│   ├── auth/                # Auth service
+│   ├── book/                # Book service
+│   ├── user/                # User service
+│   ├── idea/                # Idea service
+│   ├── review/              # Review service
+│   ├── donation/            # Donation service
+│   ├── bookmark/            # Bookmark service
+│   ├── successscore/        # Success score service
+│   ├── notification/        # Notification service
+│   ├── repository/          # Data access layer
+│   ├── rest/
+│   │   ├── handler/         # HTTP handlers
+│   │   ├── middleware/      # Auth, CORS, Logger
+│   │   └── response/        # Response helpers
+│   ├── infrastructure/
+│   │   ├── db/postgres/     # Database connection
+│   │   └── logger/          # Zap logger
+│   └── config/              # Configuration
+├── .air.toml                # Hot reload config
+├── docker-compose.yml       # Production
+├── docker-compose.dev.yml   # Development
+├── Dockerfile               # Multi-stage build
+└── Makefile                 # Commands
+```
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register user
+- `POST /api/auth/login` - Login user
+- `GET /api/me` - Get current user (protected)
+
+### Books
+- `GET /api/books` - List books
+- `GET /api/books/:id` - Get book
+- `POST /api/books` - Create book (protected)
+- `PATCH /api/books/:id` - Update book (protected)
+- `DELETE /api/books/:id` - Delete book (protected)
+
+### Users
+- `GET /api/users/:id/profile` - Get user profile
+- `GET /api/leaderboard` - Get leaderboard
+
+### Reading Ideas
+- `POST /api/ideas` - Create idea (protected)
+- `GET /api/books/:bookId/ideas` - Get ideas for book
+- `POST /api/ideas/:id/vote` - Vote on idea (protected)
+
+### Reviews
+- `POST /api/reviews` - Create review (protected)
+- `GET /api/users/:id/reviews` - Get user reviews
+
+### Donations
+- `POST /api/donations` - Create donation (protected)
+- `GET /api/donations` - List donations
+
+### Bookmarks
+- `POST /api/bookmarks` - Create bookmark (protected)
+- `DELETE /api/bookmarks/:bookId` - Delete bookmark (protected)
+- `GET /api/bookmarks` - Get user bookmarks (protected)
+
+## Development Commands
+
+```bash
+make dev          # Start with hot reload
+make up           # Start production mode
+make down         # Stop containers
+make restart      # Restart backend
+make logs         # View logs
+make db-shell     # Access database
+make test         # Run tests
+make lint         # Run linter
+make build        # Build binary
+make clean        # Clean up
+make help         # Show all commands
+```
+
+## Environment Variables
+
+See `.env.example` for all configuration options:
+
+```bash
+# Database
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=library_user
+DB_PASSWORD=library_pass
+DB_NAME=online_library
+
+# Server
+PORT=8080
+GIN_MODE=debug
+
+# JWT
+JWT_SECRET=your-secret-key-change-in-production
+```
+
+## Success Score System
+
+Users earn/lose points based on actions:
+
+| Action | Points |
+|--------|--------|
+| Return book on time | +10 |
+| Return book late | -15 |
+| Positive review (4-5 stars) | +5 |
+| Negative review (<3 stars) | -10 |
+| Post reading idea | +3 |
+| Idea upvoted | +1 |
+| Idea downvoted | -1 |
+| Lost book | -50 |
+| Donate book | +20 |
+| Money donation | +10 |
+
+## Architecture Benefits
+
+✅ **Clean Architecture** - Clear separation of concerns  
+✅ **Testability** - Easy to mock via port interfaces  
+✅ **Maintainability** - Domain logic isolated  
+✅ **Scalability** - Easy to add new domains  
+✅ **Type Safety** - UUID types, domain entities  
+✅ **Structured Logging** - Production-ready with Zap  
+✅ **Graceful Shutdown** - Context-based cancellation  
+
+## Testing
+
+```bash
+# Run tests
+make test
+
+# Run with coverage
+make test-cover
+
+# Run specific package
+go test ./internal/auth/...
+```
+
+## Deployment
+
+### Docker Production
+
+```bash
+# Build and start
+make up
+
+# Check status
+docker ps
+
+# View logs
+docker logs amar-pathagar-backend
+```
+
+### Standalone Binary
+
+```bash
+# Build
+make build-binary
+
+# Run
+./amar-pathagar-api
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## License
+
+MIT License
+
+---
+
+**Built with Clean Architecture principles** 🏗️

@@ -1,0 +1,93 @@
+# =========================
+# Git / VCS
+# =========================
+.git
+.gitignore
+.github
+
+# =========================
+# Go build artifacts
+# =========================
+bin/
+dist/
+out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.prof
+coverage/
+*.out
+coverage.html
+
+# =========================
+# Go workspace (Go 1.18+)
+# =========================
+go.work
+go.work.sum
+
+# =========================
+# Editor / IDE
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# Env / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Docker files (not needed in image)
+# =========================
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile*
+
+# =========================
+# Development tools
+# =========================
+.air.toml
+tmp/
+
+# =========================
+# Documentation
+# =========================
+README.md
+*.md
+docs/
+
+# =========================
+# Backups
+# =========================
+backups/
+
+# =========================
+# Tests (optional - uncomment to exclude)
+# =========================
+# **/*_test.go
+
+# =========================
+# IMPORTANT: allow Go mod files
+# =========================
+!go.mod
+!go.sum
