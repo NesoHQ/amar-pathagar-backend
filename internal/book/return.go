@@ -43,3 +43,12 @@ func (s *service) GetReadingHistory(ctx context.Context, userID string) ([]*doma
 	}
 	return history, nil
 }
+
+func (s *service) GetBooksOnHold(ctx context.Context, userID string) ([]*domain.Book, error) {
+	books, err := s.bookRepo.GetBooksOnHoldByUser(ctx, userID)
+	if err != nil {
+		s.log.Error("failed to get books on hold", zap.String("user_id", userID), zap.Error(err))
+		return nil, err
+	}
+	return books, nil
+}

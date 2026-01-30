@@ -348,3 +348,40 @@ func (r *BookRepository) GetReadingHistoryByUser(ctx context.Context, userID str
 	}
 	return history, nil
 }
+
+func (r *BookRepository) GetBooksOnHoldByUser(ctx context.Context, userID string) ([]*domain.Book, error) {
+	query := `
+		SELECT b.id, b.title, b.author, COALESCE(b.isbn, ''), COALESCE(b.cover_url, ''),
+		       COALESCE(b.description, ''), COALESCE(b.category, ''),
+		       COALESCE(b.tags, '{}'), COALESCE(b.topics, '{}'),
+		       COALESCE(b.physical_code, ''), b.status, COALESCE(b.max_reading_days, 14),
+		       b.current_holder_id, COALESCE(b.is_donated, false), COALESCE(b.total_reads, 0),
+		       COALESCE(b.average_rating, 0), b.created_at, b.updated_at
+		FROM books b
+		WHERE b.status = 'on_hold' AND b.current_holder_id = $1
+		ORDER BY b.updated_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []*domain.Book
+	for rows.Next() {
+		b := &domain.Book{}
+		var currentHolderID sql.NullString
+		err := rows.Scan(
+			&b.ID, &b.Title, &b.Author, &b.ISBN, &b.CoverURL, &b.Description, &b.Category,
+			pq.Array(&b.Tags), pq.Array(&b.Topics), &b.PhysicalCode, &b.Status, &b.MaxReadingDays,
+			&currentHolderID, &b.IsDonated, &b.TotalReads, &b.AverageRating,
+			&b.CreatedAt, &b.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		b.CurrentHolderID = stringPtr(currentHolderID)
+		books = append(books, b)
+	}
+	return books, nil
+}

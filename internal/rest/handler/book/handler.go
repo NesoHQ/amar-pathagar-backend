@@ -218,6 +218,7 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 	// User's book requests and history
 	r.GET("/my-requests", h.GetUserRequests)
 	r.GET("/my-reading-history", h.GetReadingHistory)
+	r.GET("/my-books-on-hold", h.GetBooksOnHold)
 }
 
 func (h *Handler) ReturnBook(c *gin.Context) {
@@ -242,4 +243,16 @@ func (h *Handler) GetReadingHistory(c *gin.Context) {
 	}
 
 	response.Success(c, history)
+}
+
+func (h *Handler) GetBooksOnHold(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	books, err := h.bookSvc.GetBooksOnHold(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, books)
 }
