@@ -52,10 +52,24 @@ func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueD
 		return fmt.Errorf("request not found")
 	}
 
-	// Update request status
+	// Update request status to approved
 	if err := s.adminRepo.UpdateRequestStatus(ctx, requestID, "approved", processedAt, &dueDate); err != nil {
 		s.log.Error("failed to approve request", zap.String("request_id", requestID), zap.Error(err))
 		return err
+	}
+
+	// Reject all other pending requests for this book
+	otherRequests, err := s.adminRepo.GetRequestsByBook(ctx, targetRequest.BookID)
+	if err != nil {
+		s.log.Error("failed to get other requests", zap.Error(err))
+	} else {
+		for _, req := range otherRequests {
+			if req.ID != requestID && req.Status == "pending" {
+				if err := s.adminRepo.UpdateRequestStatus(ctx, req.ID, "rejected", processedAt, nil); err != nil {
+					s.log.Error("failed to reject other request", zap.String("request_id", req.ID), zap.Error(err))
+				}
+			}
+		}
 	}
 
 	// Update book status and assign to user

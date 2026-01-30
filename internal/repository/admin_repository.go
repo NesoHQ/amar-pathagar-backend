@@ -126,7 +126,11 @@ func (r *AdminRepository) GetRequestsByBook(ctx context.Context, bookID string) 
 }
 
 func (r *AdminRepository) UpdateRequestStatus(ctx context.Context, requestID string, status string, processedAt string, dueDate *string) error {
-	query := `UPDATE book_requests SET status = $1, processed_at = $2, due_date = $3 WHERE id = $4`
+	query := `
+		UPDATE book_requests 
+		SET status = $1, processed_at = $2, due_date = $3
+		WHERE id = $4
+	`
 	_, err := r.db.ExecContext(ctx, query, status, processedAt, dueDate, requestID)
 	return err
 }
