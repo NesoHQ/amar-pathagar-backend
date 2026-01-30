@@ -14,6 +14,7 @@ type Book struct {
 	Topics          []string   `json:"topics,omitempty"`
 	PhysicalCode    string     `json:"physical_code,omitempty"`
 	Status          BookStatus `json:"status"`
+	MaxReadingDays  int        `json:"max_reading_days"`
 	CurrentHolderID *string    `json:"current_holder_id,omitempty"`
 	CurrentHolder   *User      `json:"current_holder,omitempty"`
 	CreatedBy       *string    `json:"created_by,omitempty"`
@@ -33,6 +34,7 @@ const (
 	StatusReading   BookStatus = "reading"
 	StatusReserved  BookStatus = "reserved"
 	StatusRequested BookStatus = "requested"
+	StatusOnHold    BookStatus = "on_hold"
 )
 
 type ReadingHistory struct {

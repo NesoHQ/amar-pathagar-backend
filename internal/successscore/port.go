@@ -13,6 +13,7 @@ type Service interface {
 	ProcessReturnOnTime(ctx context.Context, userID, bookID string) error
 	ProcessReturnLate(ctx context.Context, userID, bookID string) error
 	ProcessLostBook(ctx context.Context, userID, bookID string) error
+	AdjustScore(ctx context.Context, userID string, amount int, reason, refType string, refID *string) error
 }
 
 type ScoreRepo interface {

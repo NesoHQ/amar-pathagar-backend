@@ -77,9 +77,13 @@ CREATE TABLE IF NOT EXISTS book_requests (
     distance_km DECIMAL(10, 2),
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     processed_at TIMESTAMP,
-    due_date TIMESTAMP,
-    UNIQUE(book_id, user_id, status)
+    due_date TIMESTAMP
 );
+
+-- Partial unique index: only one pending request per book per user
+CREATE UNIQUE INDEX idx_book_requests_pending_unique 
+ON book_requests(book_id, user_id) 
+WHERE status = 'pending';
 
 -- Waiting queue table (legacy support)
 CREATE TABLE IF NOT EXISTS waiting_queue (

@@ -234,16 +234,22 @@ health: ## Check API health
 # Database Seeding
 # --------------------------------------------------
 .PHONY: seed
-seed: ## Seed database with sample data
+seed: ## Seed database with initial admin user
 	@echo "🌱 Seeding database..."
-	@# Add your seed script here
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend go run cmd/seed/main.go
+	@echo "✅ Database seeded"
+
+.PHONY: seed-local
+seed-local: ## Seed database locally (without Docker)
+	@echo "🌱 Seeding database..."
+	go run cmd/seed/main.go
 	@echo "✅ Database seeded"
 
 # --------------------------------------------------
 # Quick Commands
 # --------------------------------------------------
 .PHONY: quick-start
-quick-start: dev logs ## Quick start (dev + logs)
+quick-start: dev migrate-up seed logs ## Quick start (dev + migrate + seed + logs)
 
 .PHONY: quick-restart
 quick-restart: restart logs ## Quick restart (restart + logs)
@@ -272,4 +278,48 @@ info: ## Show project information
 	@echo "   - Database: localhost:5432"
 	@echo ""
 	@echo "📚 Documentation: README.md"
+	@echo ""
+
+# --------------------------------------------------
+# API Documentation
+# --------------------------------------------------
+.PHONY: docs
+docs: ## Serve API documentation (Swagger UI)
+	@echo "📚 Starting Swagger UI..."
+	@echo "📖 Documentation will be available at: http://localhost:8081"
+	@echo ""
+	@echo "Press Ctrl+C to stop the server"
+	@echo ""
+	@docker run -p 8081:8080 \
+		-e SWAGGER_JSON=/docs/swagger.yaml \
+		-v "$(PWD)/docs:/docs" \
+		swaggerapi/swagger-ui
+
+.PHONY: docs-validate
+docs-validate: ## Validate OpenAPI specification
+	@echo "🔍 Validating OpenAPI specification..."
+	@docker run --rm -v "$(PWD)/docs:/docs" \
+		openapitools/openapi-generator-cli validate \
+		-i /docs/swagger.yaml && \
+		echo "✅ OpenAPI specification is valid" || \
+		echo "❌ OpenAPI specification has errors"
+
+.PHONY: docs-info
+docs-info: ## Show API documentation info
+	@echo "╔════════════════════════════════════════════════════════════╗"
+	@echo "║              API Documentation Information                 ║"
+	@echo "╚════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📄 Swagger File: docs/swagger.yaml"
+	@echo "📖 README: docs/README.md"
+	@echo ""
+	@echo "🚀 To view documentation:"
+	@echo "   make docs"
+	@echo ""
+	@echo "🔍 To validate specification:"
+	@echo "   make docs-validate"
+	@echo ""
+	@echo "🌐 Online viewers:"
+	@echo "   - Swagger Editor: https://editor.swagger.io/"
+	@echo "   - Swagger UI: http://localhost:8081 (after running 'make docs')"
 	@echo ""

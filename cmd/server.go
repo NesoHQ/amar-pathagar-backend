@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yourusername/online-library/internal/admin"
 	"github.com/yourusername/online-library/internal/auth"
 	"github.com/yourusername/online-library/internal/book"
 	"github.com/yourusername/online-library/internal/bookmark"
 	"github.com/yourusername/online-library/internal/config"
 	"github.com/yourusername/online-library/internal/donation"
+	"github.com/yourusername/online-library/internal/handover"
 	"github.com/yourusername/online-library/internal/idea"
 	"github.com/yourusername/online-library/internal/infrastructure/db/postgres"
 	"github.com/yourusername/online-library/internal/notification"
@@ -20,12 +22,16 @@ import (
 	"github.com/yourusername/online-library/internal/successscore"
 	"github.com/yourusername/online-library/internal/user"
 
+	adminhandler "github.com/yourusername/online-library/internal/rest/handler/admin"
 	authhandler "github.com/yourusername/online-library/internal/rest/handler/auth"
 	bookhandler "github.com/yourusername/online-library/internal/rest/handler/book"
 	bookmarkhandler "github.com/yourusername/online-library/internal/rest/handler/bookmark"
 	donationhandler "github.com/yourusername/online-library/internal/rest/handler/donation"
+	handoverhandler "github.com/yourusername/online-library/internal/rest/handler/handover"
 	ideahandler "github.com/yourusername/online-library/internal/rest/handler/idea"
+	notificationhandler "github.com/yourusername/online-library/internal/rest/handler/notification"
 	reviewhandler "github.com/yourusername/online-library/internal/rest/handler/review"
+	swaggerhandler "github.com/yourusername/online-library/internal/rest/handler/swagger"
 	userhandler "github.com/yourusername/online-library/internal/rest/handler/user"
 	"github.com/yourusername/online-library/internal/rest/middleware"
 
@@ -51,6 +57,8 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	bookmarkRepo := repository.NewBookmarkRepository(conn.DB, log)
 	scoreRepo := repository.NewSuccessScoreRepository(conn.DB, log)
 	notificationRepo := repository.NewNotificationRepository(conn.DB, log)
+	adminRepo := repository.NewAdminRepository(conn.DB, log)
+	handoverRepo := repository.NewHandoverRepository(conn.DB, log)
 
 	// Initialize services
 	successScoreSvc := successscore.NewService(scoreRepo, log)
@@ -62,6 +70,8 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	reviewSvc := review.NewService(reviewRepo, successScoreSvc, notificationSvc, log)
 	donationSvc := donation.NewService(donationRepo, successScoreSvc, log)
 	bookmarkSvc := bookmark.NewService(bookmarkRepo, log)
+	handoverSvc := handover.NewService(handoverRepo, notificationSvc, log)
+	adminSvc := admin.NewService(adminRepo, successScoreSvc, notificationSvc, handoverRepo, log)
 
 	// Initialize handlers
 	authHandler := authhandler.NewHandler(authSvc, log)
@@ -71,6 +81,9 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	reviewHandler := reviewhandler.NewHandler(reviewSvc, log)
 	donationHandler := donationhandler.NewHandler(donationSvc, log)
 	bookmarkHandler := bookmarkhandler.NewHandler(bookmarkSvc, log)
+	adminHandler := adminhandler.NewHandler(adminSvc, log)
+	notificationHandler := notificationhandler.NewHandler(notificationSvc, log)
+	handoverHandler := handoverhandler.NewHandler(handoverSvc, log)
 
 	// Setup router
 	if cfg.Server.Mode == "release" {
@@ -85,6 +98,11 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	// Swagger documentation
+	router.GET("/docs", swaggerhandler.ServeSwaggerUI)
+	router.GET("/docs/swagger.yaml", swaggerhandler.ServeSwaggerYAML)
+	log.Info("📚 API documentation available at http://localhost:" + cfg.Server.Port + "/docs")
 
 	// API routes
 	api := router.Group("/api/v1")
@@ -103,6 +121,16 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 			reviewhandler.RegisterRoutes(protected, reviewHandler)
 			donationhandler.RegisterRoutes(protected, donationHandler)
 			bookmarkhandler.RegisterRoutes(protected, bookmarkHandler)
+			notificationhandler.RegisterRoutes(protected, notificationHandler)
+			handoverhandler.RegisterRoutes(protected, handoverHandler)
+		}
+
+		// Admin routes (requires admin role)
+		adminRoutes := api.Group("")
+		adminRoutes.Use(middleware.AuthMiddleware(authSvc, log))
+		adminRoutes.Use(middleware.AdminMiddleware())
+		{
+			adminhandler.RegisterRoutes(adminRoutes, adminHandler)
 		}
 	}
 

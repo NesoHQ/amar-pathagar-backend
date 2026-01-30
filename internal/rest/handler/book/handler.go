@@ -19,15 +19,16 @@ func NewHandler(bookSvc book.Service, log *zap.Logger) *Handler {
 }
 
 type CreateBookRequest struct {
-	Title        string   `json:"title" binding:"required"`
-	Author       string   `json:"author" binding:"required"`
-	ISBN         string   `json:"isbn"`
-	CoverURL     string   `json:"cover_url"`
-	Description  string   `json:"description"`
-	Category     string   `json:"category"`
-	Tags         []string `json:"tags"`
-	Topics       []string `json:"topics"`
-	PhysicalCode string   `json:"physical_code"`
+	Title          string   `json:"title" binding:"required"`
+	Author         string   `json:"author" binding:"required"`
+	ISBN           string   `json:"isbn"`
+	CoverURL       string   `json:"cover_url"`
+	Description    string   `json:"description"`
+	Category       string   `json:"category"`
+	Tags           []string `json:"tags"`
+	Topics         []string `json:"topics"`
+	PhysicalCode   string   `json:"physical_code"`
+	MaxReadingDays int      `json:"max_reading_days"`
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -38,17 +39,25 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	userID := middleware.GetUserID(c)
+
+	// Default to 14 days if not provided
+	maxReadingDays := req.MaxReadingDays
+	if maxReadingDays <= 0 {
+		maxReadingDays = 14
+	}
+
 	book := &domain.Book{
-		Title:        req.Title,
-		Author:       req.Author,
-		ISBN:         req.ISBN,
-		CoverURL:     req.CoverURL,
-		Description:  req.Description,
-		Category:     req.Category,
-		Tags:         req.Tags,
-		Topics:       req.Topics,
-		PhysicalCode: req.PhysicalCode,
-		CreatedBy:    &userID,
+		Title:          req.Title,
+		Author:         req.Author,
+		ISBN:           req.ISBN,
+		CoverURL:       req.CoverURL,
+		Description:    req.Description,
+		Category:       req.Category,
+		Tags:           req.Tags,
+		Topics:         req.Topics,
+		PhysicalCode:   req.PhysicalCode,
+		MaxReadingDays: maxReadingDays,
+		CreatedBy:      &userID,
 	}
 
 	created, err := h.bookSvc.Create(c.Request.Context(), book)
@@ -71,11 +80,36 @@ func (h *Handler) GetByID(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	books, err := h.bookSvc.List(c.Request.Context(), 50, 0)
+	search := c.Query("search")
+	status := c.Query("status")
+
+	var books []*domain.Book
+	var err error
+
+	if search != "" {
+		books, err = h.bookSvc.Search(c.Request.Context(), search, 50, 0)
+	} else if status != "" {
+		books, err = h.bookSvc.List(c.Request.Context(), 50, 0) // Will filter in frontend for now
+	} else {
+		books, err = h.bookSvc.List(c.Request.Context(), 50, 0)
+	}
+
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
+
+	// Filter by status if provided
+	if status != "" && search == "" {
+		filtered := []*domain.Book{}
+		for _, book := range books {
+			if string(book.Status) == status {
+				filtered = append(filtered, book)
+			}
+		}
+		books = filtered
+	}
+
 	response.Success(c, books)
 }
 
@@ -178,8 +212,47 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 		books.POST("/:id/request", h.RequestBook)
 		books.DELETE("/:id/request", h.CancelRequest)
 		books.GET("/:id/requested", h.CheckBookRequested)
+		books.POST("/:id/return", h.ReturnBook)
 	}
 
-	// User's book requests
+	// User's book requests and history
 	r.GET("/my-requests", h.GetUserRequests)
+	r.GET("/my-reading-history", h.GetReadingHistory)
+	r.GET("/my-books-on-hold", h.GetBooksOnHold)
+}
+
+func (h *Handler) ReturnBook(c *gin.Context) {
+	id := c.Param("id")
+	userID := middleware.GetUserID(c)
+
+	if err := h.bookSvc.ReturnBook(c.Request.Context(), id, userID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "book returned successfully"})
+}
+
+func (h *Handler) GetReadingHistory(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	history, err := h.bookSvc.GetReadingHistory(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, history)
+}
+
+func (h *Handler) GetBooksOnHold(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	books, err := h.bookSvc.GetBooksOnHold(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, books)
 }
