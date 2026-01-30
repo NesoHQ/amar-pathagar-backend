@@ -24,13 +24,13 @@ func NewBookRepository(db *sql.DB, log *zap.Logger) *BookRepository {
 func (r *BookRepository) Create(ctx context.Context, b *domain.Book) error {
 	query := `
 		INSERT INTO books (id, title, author, isbn, cover_url, description, category, 
-		                   tags, topics, physical_code, status, max_reading_days, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		                   tags, topics, physical_code, status, max_reading_days, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	`
 	_, err := r.db.ExecContext(ctx, query,
 		b.ID, b.Title, b.Author, b.ISBN, b.CoverURL, b.Description, b.Category,
 		pq.Array(b.Tags), pq.Array(b.Topics), b.PhysicalCode, b.Status, b.MaxReadingDays,
-		b.CreatedAt, b.UpdatedAt)
+		b.CreatedBy, b.CreatedAt, b.UpdatedAt)
 	return err
 }
 

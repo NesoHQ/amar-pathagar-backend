@@ -349,16 +349,47 @@ func (r *AdminRepository) AssignBookToUser(ctx context.Context, bookID, userID s
 }
 
 func (r *AdminRepository) CreateReadingHistory(ctx context.Context, bookID, userID, dueDate string) error {
-	query := `
-		INSERT INTO reading_history (id, book_id, reader_id, start_date, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, $2, NOW(), NOW(), NOW())
-	`
-	_, err := r.db.ExecContext(ctx, query, bookID, userID)
-	return err
+	// For initial handover, we don't create reading history yet
+	// The reading history will be created when the first reader marks the book as delivered
+	// This is handled by the handover system
+	return nil
 }
 
 func (r *AdminRepository) IncrementUserBooksReceived(ctx context.Context, userID string) error {
 	query := `UPDATE users SET books_received = books_received + 1, updated_at = NOW() WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, userID)
 	return err
+}
+
+func (r *AdminRepository) GetBookByID(ctx context.Context, bookID string) (*domain.Book, error) {
+	query := `
+		SELECT id, title, author, COALESCE(isbn, ''), COALESCE(cover_url, ''),
+		       COALESCE(description, ''), COALESCE(category, ''),
+		       COALESCE(tags, '{}'), COALESCE(topics, '{}'),
+		       COALESCE(physical_code, ''), status, COALESCE(max_reading_days, 14),
+		       current_holder_id, created_by, COALESCE(is_donated, false),
+		       COALESCE(total_reads, 0), COALESCE(average_rating, 0),
+		       created_at, updated_at
+		FROM books WHERE id = $1
+	`
+	b := &domain.Book{}
+	var currentHolderID, createdBy sql.NullString
+	err := r.db.QueryRowContext(ctx, query, bookID).Scan(
+		&b.ID, &b.Title, &b.Author, &b.ISBN, &b.CoverURL, &b.Description, &b.Category,
+		pq.Array(&b.Tags), pq.Array(&b.Topics), &b.PhysicalCode, &b.Status, &b.MaxReadingDays,
+		&currentHolderID, &createdBy, &b.IsDonated, &b.TotalReads, &b.AverageRating,
+		&b.CreatedAt, &b.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("book not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if currentHolderID.Valid {
+		b.CurrentHolderID = &currentHolderID.String
+	}
+	if createdBy.Valid {
+		b.CreatedBy = &createdBy.String
+	}
+	return b, nil
 }

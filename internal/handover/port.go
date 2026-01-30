@@ -57,4 +57,5 @@ type HandoverRepo interface {
 	GetNextApprovedRequest(ctx context.Context, bookID string) (*domain.BookRequest, error)
 	UpdateReadingHistoryNextReader(ctx context.Context, historyID, nextReaderID string) error
 	UpdateBookStatus(ctx context.Context, bookID string, status domain.BookStatus) error
+	AssignBookToUser(ctx context.Context, bookID, userID string) error
 }

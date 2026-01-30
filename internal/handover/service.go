@@ -63,7 +63,11 @@ func (s *service) MarkBookCompleted(ctx context.Context, userID, bookID string) 
 			s.log.Error("failed to send notification", zap.Error(err))
 		}
 	} else {
-		// No next reader, mark book as available
+		// No next reader, close reading history and mark book as available
+		if err := s.handoverRepo.CloseReadingHistory(ctx, history.ID, completedAt); err != nil {
+			s.log.Error("failed to close reading history", zap.Error(err))
+		}
+
 		if err := s.handoverRepo.UpdateBookStatus(ctx, bookID, domain.StatusAvailable); err != nil {
 			s.log.Error("failed to update book status to available", zap.Error(err))
 		}
@@ -77,65 +81,84 @@ func (s *service) MarkBookCompleted(ctx context.Context, userID, bookID string) 
 }
 
 func (s *service) MarkBookDelivered(ctx context.Context, userID, bookID string) error {
-	// Get active reading history
-	history, err := s.handoverRepo.GetActiveReadingHistory(ctx, bookID)
+	// Check if there's an active handover thread where user is the next holder
+	thread, err := s.handoverRepo.GetActiveHandoverThreadByBook(ctx, bookID)
 	if err != nil {
-		return fmt.Errorf("failed to get reading history: %w", err)
+		return fmt.Errorf("failed to get handover thread: %w", err)
 	}
+
+	if thread == nil {
+		return fmt.Errorf("no active handover thread found")
+	}
+
+	// Check if user is the next holder in the thread
+	if thread.NextHolderID != userID {
+		return fmt.Errorf("you are not the next holder for this book")
+	}
+
+	// Get active reading history (may not exist for initial handover)
+	history, err := s.handoverRepo.GetActiveReadingHistory(ctx, bookID)
 
 	if history == nil {
-		return fmt.Errorf("no active reading history found")
-	}
+		// Initial handover case: No reading history exists yet
+		// Create new reading history for the first reader
+		if err := s.handoverRepo.StartNewReadingHistory(ctx, bookID, userID); err != nil {
+			return fmt.Errorf("failed to start reading history: %w", err)
+		}
 
-	// Check if user is the next reader
-	if history.NextReaderID == nil || *history.NextReaderID != userID {
-		return fmt.Errorf("you are not the next reader for this book")
-	}
+		// Update book status to reading and assign to user
+		if err := s.handoverRepo.UpdateBookStatus(ctx, bookID, domain.StatusReading); err != nil {
+			s.log.Error("failed to update book status", zap.Error(err))
+		}
 
-	if history.DeliveryStatus == string(domain.DeliveryDelivered) {
-		return fmt.Errorf("book already marked as delivered")
-	}
+		// Assign book to user
+		if err := s.handoverRepo.AssignBookToUser(ctx, bookID, userID); err != nil {
+			s.log.Error("failed to assign book to user", zap.Error(err))
+		}
+	} else {
+		// Reader-to-reader handover case
+		if history.DeliveryStatus == string(domain.DeliveryDelivered) {
+			return fmt.Errorf("book already marked as delivered")
+		}
 
-	// Mark as delivered
-	deliveredAt := time.Now()
-	if err := s.handoverRepo.UpdateReadingHistoryDeliveryStatus(ctx, history.ID, domain.DeliveryDelivered, &deliveredAt); err != nil {
-		return fmt.Errorf("failed to mark book as delivered: %w", err)
-	}
+		// Mark as delivered
+		deliveredAt := time.Now()
+		if err := s.handoverRepo.UpdateReadingHistoryDeliveryStatus(ctx, history.ID, domain.DeliveryDelivered, &deliveredAt); err != nil {
+			return fmt.Errorf("failed to mark book as delivered: %w", err)
+		}
 
-	// Close the old reading history
-	if err := s.handoverRepo.CloseReadingHistory(ctx, history.ID, deliveredAt); err != nil {
-		s.log.Error("failed to close reading history", zap.Error(err))
-	}
+		// Close the old reading history
+		if err := s.handoverRepo.CloseReadingHistory(ctx, history.ID, deliveredAt); err != nil {
+			s.log.Error("failed to close reading history", zap.Error(err))
+		}
 
-	// Start new reading history for the next reader
-	if err := s.handoverRepo.StartNewReadingHistory(ctx, bookID, userID); err != nil {
-		s.log.Error("failed to start new reading history", zap.Error(err))
+		// Start new reading history for the next reader
+		if err := s.handoverRepo.StartNewReadingHistory(ctx, bookID, userID); err != nil {
+			s.log.Error("failed to start new reading history", zap.Error(err))
+		}
+
+		// Notify previous holder
+		if err := s.notificationSvc.NotifyBookDelivered(ctx, history.ReaderID, bookID, history.Book.Title); err != nil {
+			s.log.Error("failed to send notification", zap.Error(err))
+		}
 	}
 
 	// Complete the handover thread
-	thread, err := s.handoverRepo.GetActiveHandoverThreadByBook(ctx, bookID)
-	if err == nil && thread != nil {
-		completedAt := time.Now()
-		if err := s.handoverRepo.UpdateHandoverThreadStatus(ctx, thread.ID, domain.HandoverCompleted, &completedAt); err != nil {
-			s.log.Error("failed to complete handover thread", zap.Error(err))
-		}
-
-		// Post system message
-		systemMsg := &domain.HandoverMessage{
-			ThreadID:        thread.ID,
-			UserID:          userID,
-			Message:         "📦 Book has been delivered and received successfully!",
-			IsSystemMessage: true,
-			CreatedAt:       time.Now(),
-		}
-		if err := s.handoverRepo.CreateHandoverMessage(ctx, systemMsg); err != nil {
-			s.log.Error("failed to create system message", zap.Error(err))
-		}
+	completedAt := time.Now()
+	if err := s.handoverRepo.UpdateHandoverThreadStatus(ctx, thread.ID, domain.HandoverCompleted, &completedAt); err != nil {
+		s.log.Error("failed to complete handover thread", zap.Error(err))
 	}
 
-	// Notify previous holder
-	if err := s.notificationSvc.NotifyBookDelivered(ctx, history.ReaderID, bookID, history.Book.Title); err != nil {
-		s.log.Error("failed to send notification", zap.Error(err))
+	// Post system message
+	systemMsg := &domain.HandoverMessage{
+		ThreadID:        thread.ID,
+		UserID:          userID,
+		Message:         "📦 Book has been delivered and received successfully!",
+		IsSystemMessage: true,
+		CreatedAt:       time.Now(),
+	}
+	if err := s.handoverRepo.CreateHandoverMessage(ctx, systemMsg); err != nil {
+		s.log.Error("failed to create system message", zap.Error(err))
 	}
 
 	s.log.Info("book marked as delivered", zap.String("book_id", bookID), zap.String("user_id", userID))

@@ -41,6 +41,12 @@ type AdminRepo interface {
 	CreateAuditLog(ctx context.Context, log *AuditLog) error
 	GetAllBooks(ctx context.Context, limit, offset int, filters BookFilters) ([]*domain.Book, error)
 	UpdateBookStatus(ctx context.Context, bookID string, status string) error
+	GetBookByID(ctx context.Context, bookID string) (*domain.Book, error)
+}
+
+type HandoverRepo interface {
+	CreateHandoverThread(ctx context.Context, thread *domain.HandoverThread) error
+	CreateHandoverMessage(ctx context.Context, message *domain.HandoverMessage) error
 }
 
 type SystemStats struct {

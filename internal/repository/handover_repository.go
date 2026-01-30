@@ -526,3 +526,9 @@ func (r *HandoverRepository) StartNewReadingHistory(ctx context.Context, bookID,
 	_, err := r.db.ExecContext(ctx, query, bookID, userID)
 	return err
 }
+
+func (r *HandoverRepository) AssignBookToUser(ctx context.Context, bookID, userID string) error {
+	query := `UPDATE books SET current_holder_id = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, userID, bookID)
+	return err
+}

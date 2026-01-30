@@ -15,14 +15,16 @@ type service struct {
 	adminRepo       AdminRepo
 	successScoreSvc successscore.Service
 	notificationSvc notification.Service
+	handoverRepo    HandoverRepo
 	log             *zap.Logger
 }
 
-func NewService(adminRepo AdminRepo, successScoreSvc successscore.Service, notificationSvc notification.Service, log *zap.Logger) Service {
+func NewService(adminRepo AdminRepo, successScoreSvc successscore.Service, notificationSvc notification.Service, handoverRepo HandoverRepo, log *zap.Logger) Service {
 	return &service{
 		adminRepo:       adminRepo,
 		successScoreSvc: successScoreSvc,
 		notificationSvc: notificationSvc,
+		handoverRepo:    handoverRepo,
 		log:             log,
 	}
 }
@@ -72,16 +74,53 @@ func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueD
 		}
 	}
 
-	// Update book status and assign to user
-	if err := s.adminRepo.AssignBookToUser(ctx, targetRequest.BookID, targetRequest.UserID); err != nil {
-		s.log.Error("failed to assign book to user", zap.Error(err))
+	// Update book status to "requested" (not "reading" yet)
+	// The book will be marked as "reading" when the first reader confirms delivery
+	if err := s.adminRepo.UpdateBookStatus(ctx, targetRequest.BookID, "requested"); err != nil {
+		s.log.Error("failed to update book status", zap.Error(err))
 		return err
 	}
 
-	// Create reading history
-	if err := s.adminRepo.CreateReadingHistory(ctx, targetRequest.BookID, targetRequest.UserID, dueDate); err != nil {
-		s.log.Error("failed to create reading history", zap.Error(err))
-		return err
+	// Don't create reading history or assign book yet
+	// This will be done when the first reader marks the book as delivered
+
+	// Get book details to find the creator/owner
+	book, err := s.adminRepo.GetBookByID(ctx, targetRequest.BookID)
+	if err != nil {
+		s.log.Error("failed to get book details", zap.Error(err))
+	} else if book.CreatedBy != nil && *book.CreatedBy != "" {
+		// Create initial handover thread between book owner and first reader
+		parsedDueDate, parseErr := time.Parse(time.RFC3339, dueDate)
+		if parseErr != nil {
+			s.log.Error("failed to parse due date", zap.Error(parseErr))
+		} else {
+			thread := &domain.HandoverThread{
+				BookID:          targetRequest.BookID,
+				CurrentHolderID: *book.CreatedBy,      // Book owner/admin
+				NextHolderID:    targetRequest.UserID, // First reader
+				Status:          string(domain.HandoverActive),
+				HandoverDueDate: parsedDueDate,
+				IsPublic:        true,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
+			}
+
+			if err := s.handoverRepo.CreateHandoverThread(ctx, thread); err != nil {
+				s.log.Error("failed to create initial handover thread", zap.Error(err))
+			} else {
+				// Create system message
+				systemMsg := &domain.HandoverMessage{
+					ThreadID:        thread.ID,
+					UserID:          *book.CreatedBy,
+					Message:         fmt.Sprintf("📚 Book handover thread created. Please coordinate delivery of \"%s\" to the reader. Due date: %s", book.Title, parsedDueDate.Format("Jan 2, 2006")),
+					IsSystemMessage: true,
+					CreatedAt:       time.Now(),
+				}
+				if err := s.handoverRepo.CreateHandoverMessage(ctx, systemMsg); err != nil {
+					s.log.Error("failed to create system message", zap.Error(err))
+				}
+			}
+		}
 	}
 
 	// Increment user's books_received counter

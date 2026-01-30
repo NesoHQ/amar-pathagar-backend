@@ -69,8 +69,8 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	reviewSvc := review.NewService(reviewRepo, successScoreSvc, notificationSvc, log)
 	donationSvc := donation.NewService(donationRepo, successScoreSvc, log)
 	bookmarkSvc := bookmark.NewService(bookmarkRepo, log)
-	adminSvc := admin.NewService(adminRepo, successScoreSvc, notificationSvc, log)
 	handoverSvc := handover.NewService(handoverRepo, notificationSvc, log)
+	adminSvc := admin.NewService(adminRepo, successScoreSvc, notificationSvc, handoverRepo, log)
 
 	// Initialize handlers
 	authHandler := authhandler.NewHandler(authSvc, log)
