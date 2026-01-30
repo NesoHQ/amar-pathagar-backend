@@ -36,7 +36,25 @@ make dev
 
 # 3. Test the API
 curl http://localhost:8080/health
+
+# 4. View API Documentation
+open http://localhost:8080/docs
 ```
+
+## API Documentation
+
+The API documentation is automatically served at `/docs` when the application starts.
+
+- **Swagger UI**: http://localhost:8080/docs
+- **OpenAPI Spec**: http://localhost:8080/docs/swagger.yaml
+
+The documentation includes:
+- All API endpoints with request/response examples
+- Authentication requirements
+- Request/response schemas
+- Interactive API testing interface
+
+You can also view the raw OpenAPI 3.0 specification in `docs/swagger.yaml`.
 
 ## Project Structure
 

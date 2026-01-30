@@ -31,6 +31,7 @@ import (
 	ideahandler "github.com/yourusername/online-library/internal/rest/handler/idea"
 	notificationhandler "github.com/yourusername/online-library/internal/rest/handler/notification"
 	reviewhandler "github.com/yourusername/online-library/internal/rest/handler/review"
+	swaggerhandler "github.com/yourusername/online-library/internal/rest/handler/swagger"
 	userhandler "github.com/yourusername/online-library/internal/rest/handler/user"
 	"github.com/yourusername/online-library/internal/rest/middleware"
 
@@ -97,6 +98,11 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	// Swagger documentation
+	router.GET("/docs", swaggerhandler.ServeSwaggerUI)
+	router.GET("/docs/swagger.yaml", swaggerhandler.ServeSwaggerYAML)
+	log.Info("📚 API documentation available at http://localhost:" + cfg.Server.Port + "/docs")
 
 	// API routes
 	api := router.Group("/api/v1")
