@@ -13,6 +13,7 @@ import (
 	"github.com/yourusername/online-library/internal/bookmark"
 	"github.com/yourusername/online-library/internal/config"
 	"github.com/yourusername/online-library/internal/donation"
+	"github.com/yourusername/online-library/internal/handover"
 	"github.com/yourusername/online-library/internal/idea"
 	"github.com/yourusername/online-library/internal/infrastructure/db/postgres"
 	"github.com/yourusername/online-library/internal/notification"
@@ -26,6 +27,7 @@ import (
 	bookhandler "github.com/yourusername/online-library/internal/rest/handler/book"
 	bookmarkhandler "github.com/yourusername/online-library/internal/rest/handler/bookmark"
 	donationhandler "github.com/yourusername/online-library/internal/rest/handler/donation"
+	handoverhandler "github.com/yourusername/online-library/internal/rest/handler/handover"
 	ideahandler "github.com/yourusername/online-library/internal/rest/handler/idea"
 	notificationhandler "github.com/yourusername/online-library/internal/rest/handler/notification"
 	reviewhandler "github.com/yourusername/online-library/internal/rest/handler/review"
@@ -55,6 +57,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	scoreRepo := repository.NewSuccessScoreRepository(conn.DB, log)
 	notificationRepo := repository.NewNotificationRepository(conn.DB, log)
 	adminRepo := repository.NewAdminRepository(conn.DB, log)
+	handoverRepo := repository.NewHandoverRepository(conn.DB, log)
 
 	// Initialize services
 	successScoreSvc := successscore.NewService(scoreRepo, log)
@@ -67,6 +70,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	donationSvc := donation.NewService(donationRepo, successScoreSvc, log)
 	bookmarkSvc := bookmark.NewService(bookmarkRepo, log)
 	adminSvc := admin.NewService(adminRepo, successScoreSvc, notificationSvc, log)
+	handoverSvc := handover.NewService(handoverRepo, notificationSvc, log)
 
 	// Initialize handlers
 	authHandler := authhandler.NewHandler(authSvc, log)
@@ -78,6 +82,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	bookmarkHandler := bookmarkhandler.NewHandler(bookmarkSvc, log)
 	adminHandler := adminhandler.NewHandler(adminSvc, log)
 	notificationHandler := notificationhandler.NewHandler(notificationSvc, log)
+	handoverHandler := handoverhandler.NewHandler(handoverSvc, log)
 
 	// Setup router
 	if cfg.Server.Mode == "release" {
@@ -111,6 +116,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 			donationhandler.RegisterRoutes(protected, donationHandler)
 			bookmarkhandler.RegisterRoutes(protected, bookmarkHandler)
 			notificationhandler.RegisterRoutes(protected, notificationHandler)
+			handoverhandler.RegisterRoutes(protected, handoverHandler)
 		}
 
 		// Admin routes (requires admin role)

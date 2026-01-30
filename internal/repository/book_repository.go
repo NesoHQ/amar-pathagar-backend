@@ -299,6 +299,7 @@ func (r *BookRepository) GetReadingHistoryByUser(ctx context.Context, userID str
 	query := `
 		SELECT rh.id, rh.book_id, rh.reader_id, rh.start_date, rh.end_date, 
 		       rh.duration_days, COALESCE(rh.notes, ''), rh.rating, COALESCE(rh.review, ''),
+		       rh.due_date, rh.is_completed, rh.delivery_status,
 		       b.title, b.author, COALESCE(b.cover_url, '')
 		FROM reading_history rh
 		LEFT JOIN books b ON rh.book_id = b.id
@@ -317,10 +318,14 @@ func (r *BookRepository) GetReadingHistoryByUser(ctx context.Context, userID str
 		var endDate sql.NullTime
 		var durationDays sql.NullInt64
 		var rating sql.NullInt64
+		var dueDate sql.NullTime
+		var isCompleted sql.NullBool
+		var deliveryStatus sql.NullString
 
 		err := rows.Scan(
 			&h.ID, &h.BookID, &h.ReaderID, &h.StartDate, &endDate,
 			&durationDays, &h.Notes, &rating, &h.Review,
+			&dueDate, &isCompleted, &deliveryStatus,
 			&h.Book.Title, &h.Book.Author, &h.Book.CoverURL,
 		)
 		if err != nil {

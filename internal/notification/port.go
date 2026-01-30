@@ -15,6 +15,12 @@ type Service interface {
 	GetUserNotifications(ctx context.Context, userID string, limit int) ([]*domain.Notification, error)
 	MarkAsRead(ctx context.Context, notificationID string) error
 	MarkAllAsRead(ctx context.Context, userID string) error
+
+	// Handover notifications
+	NotifyBookInTransit(ctx context.Context, userID, bookID, bookTitle string) error
+	NotifyBookDelivered(ctx context.Context, userID, bookID, bookTitle string) error
+	NotifyHandoverThreadCreated(ctx context.Context, currentHolderID, nextHolderID, bookID, bookTitle string) error
+	NotifyHandoverMessage(ctx context.Context, userID, bookID, bookTitle string) error
 }
 
 type NotificationRepo interface {

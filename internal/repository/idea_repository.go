@@ -28,8 +28,17 @@ func (r *IdeaRepository) Create(ctx context.Context, i *domain.ReadingIdea) erro
 }
 
 func (r *IdeaRepository) FindByBookID(ctx context.Context, bookID string) ([]*domain.ReadingIdea, error) {
-	query := `SELECT id, book_id, user_id, title, content, COALESCE(upvotes, 0), COALESCE(downvotes, 0), created_at, updated_at
-	          FROM reading_ideas WHERE book_id = $1 ORDER BY created_at DESC`
+	query := `
+		SELECT 
+			ri.id, ri.book_id, ri.user_id, ri.title, ri.content, 
+			COALESCE(ri.upvotes, 0), COALESCE(ri.downvotes, 0), 
+			ri.created_at, ri.updated_at,
+			u.username, u.full_name, u.avatar_url
+		FROM reading_ideas ri
+		LEFT JOIN users u ON ri.user_id = u.id
+		WHERE ri.book_id = $1 
+		ORDER BY ri.created_at DESC
+	`
 	rows, err := r.db.QueryContext(ctx, query, bookID)
 	if err != nil {
 		return nil, err
@@ -38,11 +47,22 @@ func (r *IdeaRepository) FindByBookID(ctx context.Context, bookID string) ([]*do
 
 	var ideas []*domain.ReadingIdea
 	for rows.Next() {
-		i := &domain.ReadingIdea{}
-		err := rows.Scan(&i.ID, &i.BookID, &i.UserID, &i.Title, &i.Content, &i.Upvotes, &i.Downvotes, &i.CreatedAt, &i.UpdatedAt)
+		i := &domain.ReadingIdea{
+			User: &domain.User{},
+		}
+		var avatarURL sql.NullString
+		err := rows.Scan(
+			&i.ID, &i.BookID, &i.UserID, &i.Title, &i.Content,
+			&i.Upvotes, &i.Downvotes, &i.CreatedAt, &i.UpdatedAt,
+			&i.User.Username, &i.User.FullName, &avatarURL,
+		)
 		if err != nil {
 			return nil, err
 		}
+		if avatarURL.Valid {
+			i.User.AvatarURL = avatarURL.String
+		}
+		i.User.ID = i.UserID
 		ideas = append(ideas, i)
 	}
 	return ideas, nil

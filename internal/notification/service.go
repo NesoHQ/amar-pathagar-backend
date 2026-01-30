@@ -90,3 +90,61 @@ func (s *service) MarkAsRead(ctx context.Context, notificationID string) error {
 func (s *service) MarkAllAsRead(ctx context.Context, userID string) error {
 	return s.notificationRepo.MarkAllAsRead(ctx, userID)
 }
+
+// Handover notifications
+func (s *service) NotifyBookInTransit(ctx context.Context, userID, bookID, bookTitle string) error {
+	return s.notificationRepo.Create(
+		ctx,
+		userID,
+		"book_in_transit",
+		"Book In Transit",
+		fmt.Sprintf("'%s' is being prepared for handover to you!", bookTitle),
+		fmt.Sprintf("/books/%s", bookID),
+	)
+}
+
+func (s *service) NotifyBookDelivered(ctx context.Context, userID, bookID, bookTitle string) error {
+	return s.notificationRepo.Create(
+		ctx,
+		userID,
+		"book_delivered",
+		"Book Delivered",
+		fmt.Sprintf("'%s' has been successfully delivered to the next reader!", bookTitle),
+		fmt.Sprintf("/books/%s", bookID),
+	)
+}
+
+func (s *service) NotifyHandoverThreadCreated(ctx context.Context, currentHolderID, nextHolderID, bookID, bookTitle string) error {
+	// Notify current holder
+	if err := s.notificationRepo.Create(
+		ctx,
+		currentHolderID,
+		"handover_thread",
+		"Handover Thread Created",
+		fmt.Sprintf("A handover thread has been created for '%s'. Please coordinate the handover.", bookTitle),
+		fmt.Sprintf("/handover/%s", bookID),
+	); err != nil {
+		return err
+	}
+
+	// Notify next holder
+	return s.notificationRepo.Create(
+		ctx,
+		nextHolderID,
+		"handover_thread",
+		"Handover Thread Created",
+		fmt.Sprintf("You're next in line for '%s'! A handover thread has been created.", bookTitle),
+		fmt.Sprintf("/handover/%s", bookID),
+	)
+}
+
+func (s *service) NotifyHandoverMessage(ctx context.Context, userID, bookID, bookTitle string) error {
+	return s.notificationRepo.Create(
+		ctx,
+		userID,
+		"handover_message",
+		"New Handover Message",
+		fmt.Sprintf("You have a new message in the handover thread for '%s'", bookTitle),
+		fmt.Sprintf("/handover/%s", bookID),
+	)
+}
