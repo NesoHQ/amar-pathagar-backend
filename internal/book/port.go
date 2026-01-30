@@ -14,6 +14,8 @@ type Service interface {
 	Update(ctx context.Context, id string, book *domain.Book) (*domain.Book, error)
 	Delete(ctx context.Context, id string) error
 	RequestBook(ctx context.Context, bookID, userID string) (*domain.BookRequest, error)
+	GetUserRequests(ctx context.Context, userID string) ([]*domain.BookRequest, error)
+	CheckBookRequested(ctx context.Context, bookID, userID string) (bool, error)
 }
 
 // BookRepo defines the book repository interface
@@ -24,4 +26,6 @@ type BookRepo interface {
 	Update(ctx context.Context, id string, book *domain.Book) error
 	Delete(ctx context.Context, id string) error
 	CreateRequest(ctx context.Context, request *domain.BookRequest) error
+	FindRequestsByUserID(ctx context.Context, userID string) ([]*domain.BookRequest, error)
+	FindRequestByBookAndUser(ctx context.Context, bookID, userID string) (*domain.BookRequest, error)
 }

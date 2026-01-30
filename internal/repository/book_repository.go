@@ -114,3 +114,89 @@ func (r *BookRepository) CreateRequest(ctx context.Context, req *domain.BookRequ
 		req.InterestMatchScore, req.DistanceKm, req.RequestedAt)
 	return err
 }
+
+func (r *BookRepository) FindRequestsByUserID(ctx context.Context, userID string) ([]*domain.BookRequest, error) {
+	query := `
+		SELECT 
+			br.id, br.book_id, br.user_id, br.status, br.priority_score,
+			br.interest_match_score, br.distance_km, br.requested_at, br.processed_at, br.due_date,
+			b.id, b.title, b.author, COALESCE(b.cover_url, ''), COALESCE(b.category, ''),
+			b.status, COALESCE(b.average_rating, 0)
+		FROM book_requests br
+		LEFT JOIN books b ON br.book_id = b.id
+		WHERE br.user_id = $1 AND br.status = 'pending'
+		ORDER BY br.requested_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []*domain.BookRequest
+	for rows.Next() {
+		req := &domain.BookRequest{}
+		book := &domain.Book{}
+		var distanceKm sql.NullFloat64
+		var processedAt, dueDate sql.NullTime
+
+		err := rows.Scan(
+			&req.ID, &req.BookID, &req.UserID, &req.Status, &req.PriorityScore,
+			&req.InterestMatchScore, &distanceKm, &req.RequestedAt, &processedAt, &dueDate,
+			&book.ID, &book.Title, &book.Author, &book.CoverURL, &book.Category,
+			&book.Status, &book.AverageRating,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if distanceKm.Valid {
+			req.DistanceKm = &distanceKm.Float64
+		}
+		if processedAt.Valid {
+			req.ProcessedAt = &processedAt.Time
+		}
+		if dueDate.Valid {
+			req.DueDate = &dueDate.Time
+		}
+		req.Book = book
+		requests = append(requests, req)
+	}
+	return requests, nil
+}
+
+func (r *BookRepository) FindRequestByBookAndUser(ctx context.Context, bookID, userID string) (*domain.BookRequest, error) {
+	query := `
+		SELECT id, book_id, user_id, status, priority_score,
+		       interest_match_score, distance_km, requested_at, processed_at, due_date
+		FROM book_requests
+		WHERE book_id = $1 AND user_id = $2 AND status = 'pending'
+		LIMIT 1
+	`
+	req := &domain.BookRequest{}
+	var distanceKm sql.NullFloat64
+	var processedAt, dueDate sql.NullTime
+
+	err := r.db.QueryRowContext(ctx, query, bookID, userID).Scan(
+		&req.ID, &req.BookID, &req.UserID, &req.Status, &req.PriorityScore,
+		&req.InterestMatchScore, &distanceKm, &req.RequestedAt, &processedAt, &dueDate,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if distanceKm.Valid {
+		req.DistanceKm = &distanceKm.Float64
+	}
+	if processedAt.Valid {
+		req.ProcessedAt = &processedAt.Time
+	}
+	if dueDate.Valid {
+		req.DueDate = &dueDate.Time
+	}
+
+	return req, nil
+}

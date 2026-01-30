@@ -130,6 +130,31 @@ func (h *Handler) RequestBook(c *gin.Context) {
 	response.Created(c, request)
 }
 
+func (h *Handler) GetUserRequests(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	requests, err := h.bookSvc.GetUserRequests(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, requests)
+}
+
+func (h *Handler) CheckBookRequested(c *gin.Context) {
+	id := c.Param("id")
+	userID := middleware.GetUserID(c)
+
+	requested, err := h.bookSvc.CheckBookRequested(c.Request.Context(), id, userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"requested": requested})
+}
+
 func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 	books := r.Group("/books")
 	{
@@ -139,5 +164,9 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 		books.PATCH("/:id", h.Update)
 		books.DELETE("/:id", h.Delete)
 		books.POST("/:id/request", h.RequestBook)
+		books.GET("/:id/requested", h.CheckBookRequested)
 	}
+
+	// User's book requests
+	r.GET("/my-requests", h.GetUserRequests)
 }

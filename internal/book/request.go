@@ -49,3 +49,21 @@ func (s *service) RequestBook(ctx context.Context, bookID, userID string) (*doma
 	s.log.Info("book request created", zap.String("request_id", request.ID), zap.String("book_id", bookID))
 	return request, nil
 }
+
+func (s *service) GetUserRequests(ctx context.Context, userID string) ([]*domain.BookRequest, error) {
+	requests, err := s.bookRepo.FindRequestsByUserID(ctx, userID)
+	if err != nil {
+		s.log.Error("failed to get user requests", zap.String("user_id", userID), zap.String("error", err.Error()))
+		return nil, err
+	}
+	return requests, nil
+}
+
+func (s *service) CheckBookRequested(ctx context.Context, bookID, userID string) (bool, error) {
+	request, err := s.bookRepo.FindRequestByBookAndUser(ctx, bookID, userID)
+	if err != nil {
+		s.log.Error("failed to check book request", zap.String("book_id", bookID), zap.String("user_id", userID), zap.String("error", err.Error()))
+		return false, err
+	}
+	return request != nil, nil
+}
