@@ -23,6 +23,7 @@ var (
 	ErrBookNotAvailable     = errors.New("book not available")
 	ErrBookAlreadyBorrowed  = errors.New("book already borrowed")
 	ErrBookAlreadyRequested = errors.New("you already have a pending request for this book")
+	ErrAlreadyRequested     = errors.New("already requested")
 	ErrInvalidBookStatus    = errors.New("invalid book status")
 
 	// User errors

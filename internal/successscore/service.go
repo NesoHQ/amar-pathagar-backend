@@ -70,3 +70,7 @@ func (s *service) ProcessReturnLate(ctx context.Context, userID, bookID string) 
 func (s *service) ProcessLostBook(ctx context.Context, userID, bookID string) error {
 	return s.scoreRepo.UpdateScore(ctx, userID, ScoreLostBook, "Lost book", "book", &bookID)
 }
+
+func (s *service) AdjustScore(ctx context.Context, userID string, amount int, reason, refType string, refID *string) error {
+	return s.scoreRepo.UpdateScore(ctx, userID, amount, reason, refType, refID)
+}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yourusername/online-library/internal/admin"
 	"github.com/yourusername/online-library/internal/auth"
 	"github.com/yourusername/online-library/internal/book"
 	"github.com/yourusername/online-library/internal/bookmark"
@@ -20,6 +21,7 @@ import (
 	"github.com/yourusername/online-library/internal/successscore"
 	"github.com/yourusername/online-library/internal/user"
 
+	adminhandler "github.com/yourusername/online-library/internal/rest/handler/admin"
 	authhandler "github.com/yourusername/online-library/internal/rest/handler/auth"
 	bookhandler "github.com/yourusername/online-library/internal/rest/handler/book"
 	bookmarkhandler "github.com/yourusername/online-library/internal/rest/handler/bookmark"
@@ -51,6 +53,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	bookmarkRepo := repository.NewBookmarkRepository(conn.DB, log)
 	scoreRepo := repository.NewSuccessScoreRepository(conn.DB, log)
 	notificationRepo := repository.NewNotificationRepository(conn.DB, log)
+	adminRepo := repository.NewAdminRepository(conn.DB, log)
 
 	// Initialize services
 	successScoreSvc := successscore.NewService(scoreRepo, log)
@@ -62,6 +65,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	reviewSvc := review.NewService(reviewRepo, successScoreSvc, notificationSvc, log)
 	donationSvc := donation.NewService(donationRepo, successScoreSvc, log)
 	bookmarkSvc := bookmark.NewService(bookmarkRepo, log)
+	adminSvc := admin.NewService(adminRepo, successScoreSvc, notificationSvc, log)
 
 	// Initialize handlers
 	authHandler := authhandler.NewHandler(authSvc, log)
@@ -71,6 +75,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	reviewHandler := reviewhandler.NewHandler(reviewSvc, log)
 	donationHandler := donationhandler.NewHandler(donationSvc, log)
 	bookmarkHandler := bookmarkhandler.NewHandler(bookmarkSvc, log)
+	adminHandler := adminhandler.NewHandler(adminSvc, log)
 
 	// Setup router
 	if cfg.Server.Mode == "release" {
@@ -103,6 +108,14 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 			reviewhandler.RegisterRoutes(protected, reviewHandler)
 			donationhandler.RegisterRoutes(protected, donationHandler)
 			bookmarkhandler.RegisterRoutes(protected, bookmarkHandler)
+		}
+
+		// Admin routes (requires admin role)
+		adminRoutes := api.Group("")
+		adminRoutes.Use(middleware.AuthMiddleware(authSvc, log))
+		adminRoutes.Use(middleware.AdminMiddleware())
+		{
+			adminhandler.RegisterRoutes(adminRoutes, adminHandler)
 		}
 	}
 

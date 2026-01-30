@@ -55,3 +55,16 @@ func GetUserRole(c *gin.Context) string {
 	role, _ := c.Get("user_role")
 	return role.(string)
 }
+
+// AdminMiddleware ensures only admins can access the route
+func AdminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := GetUserRole(c)
+		if role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
