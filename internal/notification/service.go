@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/yourusername/online-library/internal/domain"
 	"go.uber.org/zap"
 )
 
@@ -76,4 +77,16 @@ func (s *service) NotifyReturnDue(ctx context.Context, userID, bookID, bookTitle
 		fmt.Sprintf("Please return '%s' in %d days.", bookTitle, daysLeft),
 		fmt.Sprintf("/books/%s", bookID),
 	)
+}
+
+func (s *service) GetUserNotifications(ctx context.Context, userID string, limit int) ([]*domain.Notification, error) {
+	return s.notificationRepo.GetByUserID(ctx, userID, limit)
+}
+
+func (s *service) MarkAsRead(ctx context.Context, notificationID string) error {
+	return s.notificationRepo.MarkAsRead(ctx, notificationID)
+}
+
+func (s *service) MarkAllAsRead(ctx context.Context, userID string) error {
+	return s.notificationRepo.MarkAllAsRead(ctx, userID)
 }

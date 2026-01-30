@@ -219,3 +219,127 @@ func (r *BookRepository) CancelRequest(ctx context.Context, bookID, userID strin
 
 	return nil
 }
+
+func (r *BookRepository) Search(ctx context.Context, query string, limit, offset int) ([]*domain.Book, error) {
+	searchQuery := `
+		SELECT id, title, author, COALESCE(cover_url, ''), COALESCE(category, ''),
+		       status, COALESCE(average_rating, 0), created_at
+		FROM books
+		WHERE title ILIKE $1 OR author ILIKE $1 OR category ILIKE $1
+		   OR $1 = ANY(tags) OR $1 = ANY(topics)
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := r.db.QueryContext(ctx, searchQuery, "%"+query+"%", limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []*domain.Book
+	for rows.Next() {
+		b := &domain.Book{}
+		err := rows.Scan(&b.ID, &b.Title, &b.Author, &b.CoverURL, &b.Category,
+			&b.Status, &b.AverageRating, &b.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		books = append(books, b)
+	}
+	return books, nil
+}
+
+func (r *BookRepository) FilterByStatus(ctx context.Context, status string, limit, offset int) ([]*domain.Book, error) {
+	query := `
+		SELECT id, title, author, COALESCE(cover_url, ''), COALESCE(category, ''),
+		       status, COALESCE(average_rating, 0), created_at
+		FROM books
+		WHERE status = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := r.db.QueryContext(ctx, query, status, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []*domain.Book
+	for rows.Next() {
+		b := &domain.Book{}
+		err := rows.Scan(&b.ID, &b.Title, &b.Author, &b.CoverURL, &b.Category,
+			&b.Status, &b.AverageRating, &b.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		books = append(books, b)
+	}
+	return books, nil
+}
+
+func (r *BookRepository) ReturnBook(ctx context.Context, bookID string) error {
+	query := `UPDATE books SET status = 'available', current_holder_id = NULL, updated_at = NOW() WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, bookID)
+	return err
+}
+
+func (r *BookRepository) CompleteReadingHistory(ctx context.Context, bookID, userID string) error {
+	query := `
+		UPDATE reading_history 
+		SET end_date = NOW(), 
+		    duration_days = EXTRACT(DAY FROM (NOW() - start_date))::INTEGER,
+		    updated_at = NOW()
+		WHERE book_id = $1 AND reader_id = $2 AND end_date IS NULL
+	`
+	_, err := r.db.ExecContext(ctx, query, bookID, userID)
+	return err
+}
+
+func (r *BookRepository) GetReadingHistoryByUser(ctx context.Context, userID string) ([]*domain.ReadingHistory, error) {
+	query := `
+		SELECT rh.id, rh.book_id, rh.reader_id, rh.start_date, rh.end_date, 
+		       rh.duration_days, COALESCE(rh.notes, ''), rh.rating, COALESCE(rh.review, ''),
+		       b.title, b.author, COALESCE(b.cover_url, '')
+		FROM reading_history rh
+		LEFT JOIN books b ON rh.book_id = b.id
+		WHERE rh.reader_id = $1
+		ORDER BY rh.start_date DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []*domain.ReadingHistory
+	for rows.Next() {
+		h := &domain.ReadingHistory{Book: &domain.Book{}}
+		var endDate sql.NullTime
+		var durationDays sql.NullInt64
+		var rating sql.NullInt64
+
+		err := rows.Scan(
+			&h.ID, &h.BookID, &h.ReaderID, &h.StartDate, &endDate,
+			&durationDays, &h.Notes, &rating, &h.Review,
+			&h.Book.Title, &h.Book.Author, &h.Book.CoverURL,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if endDate.Valid {
+			h.EndDate = &endDate.Time
+		}
+		if durationDays.Valid {
+			days := int(durationDays.Int64)
+			h.DurationDays = &days
+		}
+		if rating.Valid {
+			r := int(rating.Int64)
+			h.Rating = &r
+		}
+
+		history = append(history, h)
+	}
+	return history, nil
+}

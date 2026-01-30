@@ -31,6 +31,9 @@ type AdminRepo interface {
 	GetPendingRequests(ctx context.Context, limit, offset int) ([]*domain.BookRequest, error)
 	GetRequestsByBook(ctx context.Context, bookID string) ([]*domain.BookRequest, error)
 	UpdateRequestStatus(ctx context.Context, requestID string, status string, processedAt string, dueDate *string) error
+	AssignBookToUser(ctx context.Context, bookID, userID string) error
+	CreateReadingHistory(ctx context.Context, bookID, userID, dueDate string) error
+	IncrementUserBooksReceived(ctx context.Context, userID string) error
 	GetAllUsers(ctx context.Context, limit, offset int) ([]*domain.User, error)
 	UpdateUserRole(ctx context.Context, userID string, role string) error
 	GetSystemStats(ctx context.Context) (*SystemStats, error)

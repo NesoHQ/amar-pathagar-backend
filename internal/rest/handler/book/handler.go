@@ -71,11 +71,36 @@ func (h *Handler) GetByID(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	books, err := h.bookSvc.List(c.Request.Context(), 50, 0)
+	search := c.Query("search")
+	status := c.Query("status")
+
+	var books []*domain.Book
+	var err error
+
+	if search != "" {
+		books, err = h.bookSvc.Search(c.Request.Context(), search, 50, 0)
+	} else if status != "" {
+		books, err = h.bookSvc.List(c.Request.Context(), 50, 0) // Will filter in frontend for now
+	} else {
+		books, err = h.bookSvc.List(c.Request.Context(), 50, 0)
+	}
+
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
+
+	// Filter by status if provided
+	if status != "" && search == "" {
+		filtered := []*domain.Book{}
+		for _, book := range books {
+			if string(book.Status) == status {
+				filtered = append(filtered, book)
+			}
+		}
+		books = filtered
+	}
+
 	response.Success(c, books)
 }
 
@@ -178,8 +203,34 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 		books.POST("/:id/request", h.RequestBook)
 		books.DELETE("/:id/request", h.CancelRequest)
 		books.GET("/:id/requested", h.CheckBookRequested)
+		books.POST("/:id/return", h.ReturnBook)
 	}
 
-	// User's book requests
+	// User's book requests and history
 	r.GET("/my-requests", h.GetUserRequests)
+	r.GET("/my-reading-history", h.GetReadingHistory)
+}
+
+func (h *Handler) ReturnBook(c *gin.Context) {
+	id := c.Param("id")
+	userID := middleware.GetUserID(c)
+
+	if err := h.bookSvc.ReturnBook(c.Request.Context(), id, userID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "book returned successfully"})
+}
+
+func (h *Handler) GetReadingHistory(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	history, err := h.bookSvc.GetReadingHistory(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, history)
 }

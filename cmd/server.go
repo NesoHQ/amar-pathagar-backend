@@ -27,6 +27,7 @@ import (
 	bookmarkhandler "github.com/yourusername/online-library/internal/rest/handler/bookmark"
 	donationhandler "github.com/yourusername/online-library/internal/rest/handler/donation"
 	ideahandler "github.com/yourusername/online-library/internal/rest/handler/idea"
+	notificationhandler "github.com/yourusername/online-library/internal/rest/handler/notification"
 	reviewhandler "github.com/yourusername/online-library/internal/rest/handler/review"
 	userhandler "github.com/yourusername/online-library/internal/rest/handler/user"
 	"github.com/yourusername/online-library/internal/rest/middleware"
@@ -76,6 +77,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 	donationHandler := donationhandler.NewHandler(donationSvc, log)
 	bookmarkHandler := bookmarkhandler.NewHandler(bookmarkSvc, log)
 	adminHandler := adminhandler.NewHandler(adminSvc, log)
+	notificationHandler := notificationhandler.NewHandler(notificationSvc, log)
 
 	// Setup router
 	if cfg.Server.Mode == "release" {
@@ -108,6 +110,7 @@ func run(ctx context.Context, cfg *config.Config, log *zap.Logger) error {
 			reviewhandler.RegisterRoutes(protected, reviewHandler)
 			donationhandler.RegisterRoutes(protected, donationHandler)
 			bookmarkhandler.RegisterRoutes(protected, bookmarkHandler)
+			notificationhandler.RegisterRoutes(protected, notificationHandler)
 		}
 
 		// Admin routes (requires admin role)

@@ -34,9 +34,50 @@ func (s *service) GetPendingRequests(ctx context.Context, limit, offset int) ([]
 func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueDate string) error {
 	processedAt := time.Now().Format(time.RFC3339)
 
+	// Get the request details first
+	requests, err := s.adminRepo.GetPendingRequests(ctx, 1000, 0)
+	if err != nil {
+		return err
+	}
+
+	var targetRequest *domain.BookRequest
+	for _, req := range requests {
+		if req.ID == requestID {
+			targetRequest = req
+			break
+		}
+	}
+
+	if targetRequest == nil {
+		return fmt.Errorf("request not found")
+	}
+
+	// Update request status
 	if err := s.adminRepo.UpdateRequestStatus(ctx, requestID, "approved", processedAt, &dueDate); err != nil {
 		s.log.Error("failed to approve request", zap.String("request_id", requestID), zap.Error(err))
 		return err
+	}
+
+	// Update book status and assign to user
+	if err := s.adminRepo.AssignBookToUser(ctx, targetRequest.BookID, targetRequest.UserID); err != nil {
+		s.log.Error("failed to assign book to user", zap.Error(err))
+		return err
+	}
+
+	// Create reading history
+	if err := s.adminRepo.CreateReadingHistory(ctx, targetRequest.BookID, targetRequest.UserID, dueDate); err != nil {
+		s.log.Error("failed to create reading history", zap.Error(err))
+		return err
+	}
+
+	// Increment user's books_received counter
+	if err := s.adminRepo.IncrementUserBooksReceived(ctx, targetRequest.UserID); err != nil {
+		s.log.Error("failed to increment books received", zap.Error(err))
+	}
+
+	// Send notification to user
+	if err := s.notificationSvc.NotifyRequestApproved(ctx, targetRequest.UserID, targetRequest.BookID, targetRequest.Book.Title); err != nil {
+		s.log.Error("failed to send notification", zap.Error(err))
 	}
 
 	s.log.Info("book request approved", zap.String("request_id", requestID))

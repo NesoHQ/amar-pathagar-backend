@@ -26,3 +26,17 @@ func (s *service) List(ctx context.Context, limit, offset int) ([]*domain.Book, 
 
 	return books, nil
 }
+
+func (s *service) Search(ctx context.Context, query string, limit, offset int) ([]*domain.Book, error) {
+	if query == "" {
+		return s.bookRepo.List(ctx, limit, offset)
+	}
+
+	books, err := s.bookRepo.Search(ctx, query, limit, offset)
+	if err != nil {
+		s.log.Error("failed to search books", zap.String("query", query), zap.Error(err))
+		return nil, err
+	}
+
+	return books, nil
+}

@@ -337,3 +337,24 @@ func (r *AdminRepository) UpdateBookStatus(ctx context.Context, bookID string, s
 	_, err := r.db.ExecContext(ctx, query, status, bookID)
 	return err
 }
+
+func (r *AdminRepository) AssignBookToUser(ctx context.Context, bookID, userID string) error {
+	query := `UPDATE books SET status = 'reading', current_holder_id = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, userID, bookID)
+	return err
+}
+
+func (r *AdminRepository) CreateReadingHistory(ctx context.Context, bookID, userID, dueDate string) error {
+	query := `
+		INSERT INTO reading_history (id, book_id, reader_id, start_date, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, $2, NOW(), NOW(), NOW())
+	`
+	_, err := r.db.ExecContext(ctx, query, bookID, userID)
+	return err
+}
+
+func (r *AdminRepository) IncrementUserBooksReceived(ctx context.Context, userID string) error {
+	query := `UPDATE users SET books_received = books_received + 1, updated_at = NOW() WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}
