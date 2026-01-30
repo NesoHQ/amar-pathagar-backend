@@ -34,13 +34,13 @@ func (s *service) Create(ctx context.Context, bookmark *domain.UserBookmark) (*d
 	return bookmark, nil
 }
 
-func (s *service) Delete(ctx context.Context, userID, bookID string) error {
-	if err := s.bookmarkRepo.Delete(ctx, userID, bookID); err != nil {
-		s.log.Error("failed to delete bookmark", zap.String("user_id", userID), zap.String("book_id", bookID), zap.Error(err))
+func (s *service) Delete(ctx context.Context, userID, bookID, bookmarkType string) error {
+	if err := s.bookmarkRepo.Delete(ctx, userID, bookID, bookmarkType); err != nil {
+		s.log.Error("failed to delete bookmark", zap.String("user_id", userID), zap.String("book_id", bookID), zap.String("bookmark_type", bookmarkType), zap.String("error", err.Error()))
 		return err
 	}
 
-	s.log.Info("bookmark deleted successfully", zap.String("user_id", userID), zap.String("book_id", bookID))
+	s.log.Info("bookmark deleted successfully", zap.String("user_id", userID), zap.String("book_id", bookID), zap.String("bookmark_type", bookmarkType))
 	return nil
 }
 

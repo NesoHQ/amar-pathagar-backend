@@ -51,8 +51,14 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	bookID := c.Param("bookId")
+	bookmarkType := c.Query("type")
 
-	if err := h.bookmarkSvc.Delete(c.Request.Context(), userID, bookID); err != nil {
+	if bookmarkType == "" {
+		response.BadRequest(c, "bookmark type is required")
+		return
+	}
+
+	if err := h.bookmarkSvc.Delete(c.Request.Context(), userID, bookID, bookmarkType); err != nil {
 		response.Error(c, err)
 		return
 	}

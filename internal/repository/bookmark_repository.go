@@ -27,8 +27,9 @@ func (r *BookmarkRepository) Create(ctx context.Context, b *domain.UserBookmark)
 	return err
 }
 
-func (r *BookmarkRepository) Delete(ctx context.Context, userID, bookID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM user_bookmarks WHERE user_id = $1 AND book_id = $2`, userID, bookID)
+func (r *BookmarkRepository) Delete(ctx context.Context, userID, bookID, bookmarkType string) error {
+	query := `DELETE FROM user_bookmarks WHERE user_id = $1 AND book_id = $2 AND bookmark_type = $3`
+	_, err := r.db.ExecContext(ctx, query, userID, bookID, bookmarkType)
 	return err
 }
 
