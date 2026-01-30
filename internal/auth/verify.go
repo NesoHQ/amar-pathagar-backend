@@ -30,7 +30,7 @@ func (s *service) ValidateToken(ctx context.Context, tokenString string) (*Token
 	})
 
 	if err != nil {
-		s.log.Warn("failed to parse token", zap.Error(err))
+		s.log.Warn("failed to parse token", zap.String("error", err.Error()))
 		return nil, domain.ErrInvalidToken
 	}
 

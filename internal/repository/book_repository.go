@@ -102,3 +102,15 @@ func (r *BookRepository) Delete(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM books WHERE id = $1", id)
 	return err
 }
+
+func (r *BookRepository) CreateRequest(ctx context.Context, req *domain.BookRequest) error {
+	query := `
+		INSERT INTO book_requests (id, book_id, user_id, status, priority_score, 
+		                          interest_match_score, distance_km, requested_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+	_, err := r.db.ExecContext(ctx, query,
+		req.ID, req.BookID, req.UserID, req.Status, req.PriorityScore,
+		req.InterestMatchScore, req.DistanceKm, req.RequestedAt)
+	return err
+}

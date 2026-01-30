@@ -55,19 +55,66 @@ func (r *IdeaRepository) AddVote(ctx context.Context, vote *domain.IdeaVote) err
 	}
 	defer tx.Rollback()
 
-	_, err = tx.ExecContext(ctx, `INSERT INTO idea_votes (id, idea_id, user_id, vote_type, created_at) VALUES ($1, $2, $3, $4, $5)`,
-		vote.ID, vote.IdeaID, vote.UserID, vote.VoteType, vote.CreatedAt)
-	if err != nil {
-		return err
-	}
+	// Check if user already voted
+	var existingVoteType string
+	err = tx.QueryRowContext(ctx, `SELECT vote_type FROM idea_votes WHERE idea_id = $1 AND user_id = $2`,
+		vote.IdeaID, vote.UserID).Scan(&existingVoteType)
 
-	if vote.VoteType == domain.VoteTypeUp {
-		_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET upvotes = upvotes + 1 WHERE id = $1`, vote.IdeaID)
-	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET downvotes = downvotes + 1 WHERE id = $1`, vote.IdeaID)
-	}
-	if err != nil {
+	if err == sql.ErrNoRows {
+		// No existing vote, insert new one
+		_, err = tx.ExecContext(ctx, `INSERT INTO idea_votes (id, idea_id, user_id, vote_type, created_at) VALUES ($1, $2, $3, $4, $5)`,
+			vote.ID, vote.IdeaID, vote.UserID, vote.VoteType, vote.CreatedAt)
+		if err != nil {
+			return err
+		}
+
+		// Update vote counts
+		if vote.VoteType == domain.VoteTypeUp {
+			_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET upvotes = upvotes + 1 WHERE id = $1`, vote.IdeaID)
+		} else {
+			_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET downvotes = downvotes + 1 WHERE id = $1`, vote.IdeaID)
+		}
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
+	} else {
+		// User already voted
+		if existingVoteType == string(vote.VoteType) {
+			// Same vote type, remove the vote (toggle off)
+			_, err = tx.ExecContext(ctx, `DELETE FROM idea_votes WHERE idea_id = $1 AND user_id = $2`, vote.IdeaID, vote.UserID)
+			if err != nil {
+				return err
+			}
+
+			// Decrement vote count
+			if vote.VoteType == domain.VoteTypeUp {
+				_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET upvotes = GREATEST(upvotes - 1, 0) WHERE id = $1`, vote.IdeaID)
+			} else {
+				_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET downvotes = GREATEST(downvotes - 1, 0) WHERE id = $1`, vote.IdeaID)
+			}
+			if err != nil {
+				return err
+			}
+		} else {
+			// Different vote type, update the vote
+			_, err = tx.ExecContext(ctx, `UPDATE idea_votes SET vote_type = $1 WHERE idea_id = $2 AND user_id = $3`,
+				vote.VoteType, vote.IdeaID, vote.UserID)
+			if err != nil {
+				return err
+			}
+
+			// Update vote counts (decrement old, increment new)
+			if vote.VoteType == domain.VoteTypeUp {
+				_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET upvotes = upvotes + 1, downvotes = GREATEST(downvotes - 1, 0) WHERE id = $1`, vote.IdeaID)
+			} else {
+				_, err = tx.ExecContext(ctx, `UPDATE reading_ideas SET downvotes = downvotes + 1, upvotes = GREATEST(upvotes - 1, 0) WHERE id = $1`, vote.IdeaID)
+			}
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return tx.Commit()

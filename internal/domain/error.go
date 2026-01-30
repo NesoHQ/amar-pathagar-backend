@@ -19,6 +19,7 @@ var (
 	ErrUsernameExists     = errors.New("username already exists")
 
 	// Book errors
+	ErrBookNotFound        = errors.New("book not found")
 	ErrBookNotAvailable    = errors.New("book not available")
 	ErrBookAlreadyBorrowed = errors.New("book already borrowed")
 	ErrInvalidBookStatus   = errors.New("invalid book status")

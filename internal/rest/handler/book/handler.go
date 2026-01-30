@@ -117,6 +117,19 @@ func (h *Handler) Delete(c *gin.Context) {
 	response.Success(c, gin.H{"message": "book deleted"})
 }
 
+func (h *Handler) RequestBook(c *gin.Context) {
+	id := c.Param("id")
+	userID := middleware.GetUserID(c)
+
+	request, err := h.bookSvc.RequestBook(c.Request.Context(), id, userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Created(c, request)
+}
+
 func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 	books := r.Group("/books")
 	{
@@ -125,5 +138,6 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 		books.POST("", h.Create)
 		books.PATCH("/:id", h.Update)
 		books.DELETE("/:id", h.Delete)
+		books.POST("/:id/request", h.RequestBook)
 	}
 }

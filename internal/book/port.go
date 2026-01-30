@@ -13,6 +13,7 @@ type Service interface {
 	List(ctx context.Context, limit, offset int) ([]*domain.Book, error)
 	Update(ctx context.Context, id string, book *domain.Book) (*domain.Book, error)
 	Delete(ctx context.Context, id string) error
+	RequestBook(ctx context.Context, bookID, userID string) (*domain.BookRequest, error)
 }
 
 // BookRepo defines the book repository interface
@@ -22,4 +23,5 @@ type BookRepo interface {
 	List(ctx context.Context, limit, offset int) ([]*domain.Book, error)
 	Update(ctx context.Context, id string, book *domain.Book) error
 	Delete(ctx context.Context, id string) error
+	CreateRequest(ctx context.Context, request *domain.BookRequest) error
 }

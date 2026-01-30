@@ -30,7 +30,7 @@ func AuthMiddleware(authSvc auth.Service, log *zap.Logger) gin.HandlerFunc {
 		token := parts[1]
 		claims, err := authSvc.ValidateToken(c.Request.Context(), token)
 		if err != nil {
-			log.Warn("invalid token", zap.Error(err))
+			log.Warn("invalid token", zap.String("error", err.Error()))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			c.Abort()
 			return
