@@ -1142,6 +1142,33 @@ paths:
                     items:
                       $ref: '#/components/schemas/ReadingHistory'
 
+  /my-books-on-hold:
+    get:
+      summary: Get books on hold
+      description: Get books that the current user is holding (status on_hold)
+      tags:
+        - Books
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of books on hold
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /handover/threads:
     get:
       summary: Get user's handover threads
