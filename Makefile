@@ -39,7 +39,7 @@ help: ## Show this help message
 # --------------------------------------------------
 .PHONY: dev
 dev: ## Start development environment (with hot reload)
-	docker compose -f $(COMPOSE_DEV_FILE) up -d
+	docker-compose -f $(COMPOSE_DEV_FILE) up -d
 	@echo "✅ Development environment started"
 	@echo "📝 API: http://localhost:8080"
 	@echo "🔍 Health: http://localhost:8080/health"
@@ -47,60 +47,60 @@ dev: ## Start development environment (with hot reload)
 
 .PHONY: logs
 logs: ## Follow application logs
-	docker compose -f $(COMPOSE_DEV_FILE) logs -f backend
+	docker-compose -f $(COMPOSE_DEV_FILE) logs -f backend
 
 .PHONY: restart
 restart: ## Restart development environment
-	docker compose -f $(COMPOSE_DEV_FILE) restart backend
+	docker-compose -f $(COMPOSE_DEV_FILE) restart backend
 	@echo "✅ Backend restarted"
 
 .PHONY: stop
 stop: ## Stop development environment
-	docker compose -f $(COMPOSE_DEV_FILE) stop
+	docker-compose -f $(COMPOSE_DEV_FILE) stop
 
 # --------------------------------------------------
 # Production
 # --------------------------------------------------
 .PHONY: up
 up: ## Start production environment
-	docker compose -f $(COMPOSE_FILE) up -d --build
+	docker-compose -f $(COMPOSE_FILE) up -d --build
 	@echo "✅ Production environment started"
 
 .PHONY: down
 down: ## Stop and remove all containers
-	docker compose -f $(COMPOSE_FILE) down
-	docker compose -f $(COMPOSE_DEV_FILE) down
+	docker-compose -f $(COMPOSE_FILE) down
+	docker-compose -f $(COMPOSE_DEV_FILE) down
 	@echo "✅ All containers stopped and removed"
 
 .PHONY: build
 build: ## Build Docker image
-	docker compose -f $(COMPOSE_FILE) build --no-cache
+	docker-compose -f $(COMPOSE_FILE) build --no-cache
 
 # --------------------------------------------------
 # Database
 # --------------------------------------------------
 .PHONY: db-shell
 db-shell: ## Open PostgreSQL shell
-	docker compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d $(DB_NAME)
+	docker-compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d $(DB_NAME)
 
 .PHONY: db-reset
 db-reset: ## Reset database (drop and recreate)
 	@echo "⚠️  This will delete all data. Press Ctrl+C to cancel..."
 	@sleep 3
-	docker compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d postgres -c "DROP DATABASE IF EXISTS $(DB_NAME);"
-	docker compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d postgres -c "CREATE DATABASE $(DB_NAME);"
+	docker-compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d postgres -c "DROP DATABASE IF EXISTS $(DB_NAME);"
+	docker-compose -f $(COMPOSE_DEV_FILE) exec postgres psql -U $(DB_USER) -d postgres -c "CREATE DATABASE $(DB_NAME);"
 	@echo "✅ Database reset complete. Run 'make migrate-up' to apply migrations."
 
 .PHONY: db-backup
 db-backup: ## Backup database
 	@mkdir -p backups
-	docker compose -f $(COMPOSE_DEV_FILE) exec -T postgres pg_dump -U $(DB_USER) $(DB_NAME) > backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+	docker-compose -f $(COMPOSE_DEV_FILE) exec -T postgres pg_dump -U $(DB_USER) $(DB_NAME) > backups/backup_$$(date +%Y%m%d_%H%M%S).sql
 	@echo "✅ Database backed up to backups/"
 
 .PHONY: db-restore
 db-restore: ## Restore database from backup (usage: make db-restore FILE=backups/backup.sql)
 	@if [ -z "$(FILE)" ]; then echo "❌ Usage: make db-restore FILE=backups/backup.sql"; exit 1; fi
-	docker compose -f $(COMPOSE_DEV_FILE) exec -T postgres psql -U $(DB_USER) $(DB_NAME) < $(FILE)
+	docker-compose -f $(COMPOSE_DEV_FILE) exec -T postgres psql -U $(DB_USER) $(DB_NAME) < $(FILE)
 	@echo "✅ Database restored from $(FILE)"
 
 # --------------------------------------------------
@@ -111,25 +111,25 @@ DATABASE_URL = postgres://$(DB_USER):$(DB_PASSWORD)@localhost:$(DB_PORT)/$(DB_NA
 
 .PHONY: migrate-status
 migrate-status: ## Show migration status
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" status
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" status
 
 .PHONY: migrate-up
 migrate-up: ## Run migrations
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
 
 .PHONY: migrate-down
 migrate-down: ## Roll back last migration
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down
 
 .PHONY: migrate-reset
 migrate-reset: ## Reset and re-run migrations
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" reset
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" reset
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) postgres "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
 
 .PHONY: migration
 migration: ## Create a new migration file (usage: make migration NAME=create_users)
 	@if [ -z "$(NAME)" ]; then echo "❌ Usage: make migration NAME=create_users"; exit 1; fi
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) create $(NAME) sql
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend goose -dir $(MIGRATIONS_DIR) create $(NAME) sql
 	@echo "✅ Migration created in $(MIGRATIONS_DIR)/"
 
 # --------------------------------------------------
@@ -205,16 +205,16 @@ tidy: ## Tidy go.mod
 # --------------------------------------------------
 .PHONY: ps
 ps: ## Show running containers
-	docker compose -f $(COMPOSE_DEV_FILE) ps
+	docker-compose -f $(COMPOSE_DEV_FILE) ps
 
 .PHONY: shell
 shell: ## Open shell in backend container
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend sh
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend sh
 
 .PHONY: clean
 clean: ## Clean up containers, volumes, and build artifacts
-	docker compose -f $(COMPOSE_FILE) down -v
-	docker compose -f $(COMPOSE_DEV_FILE) down -v
+	docker-compose -f $(COMPOSE_FILE) down -v
+	docker-compose -f $(COMPOSE_DEV_FILE) down -v
 	rm -f $(BINARY_NAME)
 	rm -f coverage.out coverage.html
 	@echo "✅ Cleanup complete"
@@ -236,7 +236,7 @@ health: ## Check API health
 .PHONY: seed
 seed: ## Seed database with initial admin user
 	@echo "🌱 Seeding database..."
-	docker compose -f $(COMPOSE_DEV_FILE) exec backend go run cmd/seed/main.go
+	docker-compose -f $(COMPOSE_DEV_FILE) exec backend go run cmd/seed/main.go
 	@echo "✅ Database seeded"
 
 .PHONY: seed-local
