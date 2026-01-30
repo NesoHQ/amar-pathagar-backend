@@ -19,10 +19,11 @@ var (
 	ErrUsernameExists     = errors.New("username already exists")
 
 	// Book errors
-	ErrBookNotFound        = errors.New("book not found")
-	ErrBookNotAvailable    = errors.New("book not available")
-	ErrBookAlreadyBorrowed = errors.New("book already borrowed")
-	ErrInvalidBookStatus   = errors.New("invalid book status")
+	ErrBookNotFound         = errors.New("book not found")
+	ErrBookNotAvailable     = errors.New("book not available")
+	ErrBookAlreadyBorrowed  = errors.New("book already borrowed")
+	ErrBookAlreadyRequested = errors.New("you already have a pending request for this book")
+	ErrInvalidBookStatus    = errors.New("invalid book status")
 
 	// User errors
 	ErrUserNotFound      = errors.New("user not found")

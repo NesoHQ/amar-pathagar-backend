@@ -2,6 +2,7 @@ package book
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,10 @@ func (s *service) RequestBook(ctx context.Context, bookID, userID string) (*doma
 		return nil, domain.ErrBookNotAvailable
 	}
 
+	// Check if user already has a pending request for this book
+	// For now, we'll just create the request and let the unique constraint handle it
+	// In production, you'd want to check first and return a friendly error
+
 	// Create book request
 	request := &domain.BookRequest{
 		ID:          uuid.New().String(),
@@ -32,6 +37,11 @@ func (s *service) RequestBook(ctx context.Context, bookID, userID string) (*doma
 	}
 
 	if err := s.bookRepo.CreateRequest(ctx, request); err != nil {
+		// Check if it's a duplicate key error
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+			s.log.Warn("user already has a pending request for this book", zap.String("book_id", bookID), zap.String("user_id", userID))
+			return nil, domain.ErrBookAlreadyRequested
+		}
 		s.log.Error("failed to create book request", zap.String("error", err.Error()))
 		return nil, err
 	}
