@@ -32,7 +32,27 @@ func (s *service) MarkBookCompleted(ctx context.Context, userID, bookID string) 
 	}
 
 	if history == nil {
-		return fmt.Errorf("no active reading history found")
+		// Check if there's already a completed reading history for this user
+		lastHistory, err := s.handoverRepo.GetLastCompletedReadingHistory(ctx, bookID)
+		if err == nil && lastHistory != nil && lastHistory.ReaderID == userID {
+			// User already completed this book
+			return fmt.Errorf("you have already marked this book as completed")
+		}
+
+		// No active reading history found - this can happen for old books
+		// Create a reading history entry for this book
+		s.log.Warn("no active reading history found, creating one", zap.String("book_id", bookID), zap.String("user_id", userID))
+
+		// Create reading history starting from now
+		if err := s.handoverRepo.StartNewReadingHistory(ctx, bookID, userID); err != nil {
+			return fmt.Errorf("failed to create reading history: %w", err)
+		}
+
+		// Get the newly created history
+		history, err = s.handoverRepo.GetActiveReadingHistory(ctx, bookID)
+		if err != nil || history == nil {
+			return fmt.Errorf("failed to get newly created reading history: %w", err)
+		}
 	}
 
 	if history.ReaderID != userID {
@@ -63,15 +83,22 @@ func (s *service) MarkBookCompleted(ctx context.Context, userID, bookID string) 
 			s.log.Error("failed to send notification", zap.Error(err))
 		}
 	} else {
-		// No next reader, close reading history and mark book as available
-		// Book becomes available for new requests
+		// No next reader, close reading history and mark book as on_hold
+		// Book stays with the reader (no penalty) until someone requests it
 		if err := s.handoverRepo.CloseReadingHistory(ctx, history.ID, completedAt); err != nil {
 			s.log.Error("failed to close reading history", zap.Error(err))
+			return fmt.Errorf("failed to close reading history: %w", err)
 		}
 
-		if err := s.handoverRepo.UpdateBookStatus(ctx, bookID, domain.StatusAvailable); err != nil {
-			s.log.Error("failed to update book status to available", zap.Error(err))
+		if err := s.handoverRepo.UpdateBookStatus(ctx, bookID, domain.StatusOnHold); err != nil {
+			s.log.Error("failed to update book status to on_hold", zap.String("book_id", bookID), zap.Error(err))
+			return fmt.Errorf("failed to update book status: %w", err)
 		}
+
+		s.log.Info("book status updated to on_hold", zap.String("book_id", bookID))
+
+		// Keep the book assigned to the current reader
+		// They will hold it until someone requests it
 
 		// Close any active handover thread since there's no next reader
 		activeThread, err := s.handoverRepo.GetActiveHandoverThreadByBook(ctx, bookID)
@@ -83,7 +110,7 @@ func (s *service) MarkBookCompleted(ctx context.Context, userID, bookID string) 
 				systemMsg := &domain.HandoverMessage{
 					ThreadID:        activeThread.ID,
 					UserID:          userID,
-					Message:         "📚 Book reading completed. Book is now available for new requests.",
+					Message:         "📚 Book reading completed. Book is on hold until next request.",
 					IsSystemMessage: true,
 					CreatedAt:       time.Now(),
 				}

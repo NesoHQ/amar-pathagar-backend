@@ -90,8 +90,8 @@ func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueD
 	// Determine who is the current holder
 	var currentHolderID string
 
-	if book.Status == domain.StatusAvailable {
-		// Book is available - check if someone read it before
+	if book.Status == domain.StatusAvailable || book.Status == domain.StatusOnHold {
+		// Book is available or on_hold - check if someone read it before
 		lastHistory, err := s.handoverRepo.GetLastCompletedReadingHistory(ctx, targetRequest.BookID)
 		if err != nil || lastHistory == nil {
 			// No one has read it yet, use book creator
@@ -105,7 +105,7 @@ func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueD
 			currentHolderID = lastHistory.ReaderID
 		}
 	} else {
-		return fmt.Errorf("book is not available for request")
+		return fmt.Errorf("book is not available for request (status: %s)", book.Status)
 	}
 
 	// Create handover thread between current holder and new requester
