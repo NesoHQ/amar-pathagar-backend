@@ -31,15 +31,41 @@ This backend follows **eventrizo-backend's clean architecture pattern** with:
 # 1. Copy environment file
 cp .env.example .env
 
-# 2. Start development (with hot reload)
+# 2. (Optional) Edit .env to set admin credentials
+# ADMIN_USERNAME=admin
+# ADMIN_EMAIL=admin@amarpathagar.com
+# ADMIN_PASSWORD=admin123
+# ADMIN_FULL_NAME=System Administrator
+
+# 3. Start development (with hot reload)
 make dev
 
-# 3. Test the API
+# 4. Run migrations
+make migrate-up
+
+# 5. Create admin user
+make seed
+
+# 6. Test the API
 curl http://localhost:8080/health
 
-# 4. View API Documentation
+# 7. View API Documentation
 open http://localhost:8080/docs
 ```
+
+**Or use the quick-start command:**
+```bash
+make quick-start  # Runs dev + migrate + seed + logs
+```
+
+## Default Admin Credentials
+
+After running `make seed`, you can login with:
+- **Username**: admin (or value from `ADMIN_USERNAME` in .env)
+- **Email**: admin@amarpathagar.com (or value from `ADMIN_EMAIL` in .env)
+- **Password**: admin123 (or value from `ADMIN_PASSWORD` in .env)
+
+⚠️ **IMPORTANT**: Change the admin password immediately after first login in production!
 
 ## API Documentation
 
@@ -143,6 +169,8 @@ make down         # Stop containers
 make restart      # Restart backend
 make logs         # View logs
 make db-shell     # Access database
+make migrate-up   # Run migrations
+make seed         # Create admin user
 make test         # Run tests
 make lint         # Run linter
 make build        # Build binary

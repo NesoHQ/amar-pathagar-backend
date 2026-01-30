@@ -234,16 +234,22 @@ health: ## Check API health
 # Database Seeding
 # --------------------------------------------------
 .PHONY: seed
-seed: ## Seed database with sample data
+seed: ## Seed database with initial admin user
 	@echo "🌱 Seeding database..."
-	@# Add your seed script here
+	docker compose -f $(COMPOSE_DEV_FILE) exec backend go run cmd/seed/main.go
+	@echo "✅ Database seeded"
+
+.PHONY: seed-local
+seed-local: ## Seed database locally (without Docker)
+	@echo "🌱 Seeding database..."
+	go run cmd/seed/main.go
 	@echo "✅ Database seeded"
 
 # --------------------------------------------------
 # Quick Commands
 # --------------------------------------------------
 .PHONY: quick-start
-quick-start: dev logs ## Quick start (dev + logs)
+quick-start: dev migrate-up seed logs ## Quick start (dev + migrate + seed + logs)
 
 .PHONY: quick-restart
 quick-restart: restart logs ## Quick restart (restart + logs)
