@@ -35,10 +35,11 @@ services:
       DB_SSLMODE: ${DB_SSLMODE:-disable}
       DATABASE_URL: postgres://${DB_USER:-library_user}:${DB_PASSWORD:-library_pass}@postgres:5432/${DB_NAME:-online_library}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
-      PORT: ${PORT:-8080}
+      PORT: 8080
       GIN_MODE: debug
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
     ports:
-      - "${PORT:-8080}:8080"
+      - "0.0.0.0:${PORT:-8080}:8080"
     volumes:
       # Mount source code for hot reload
       - .:/app
