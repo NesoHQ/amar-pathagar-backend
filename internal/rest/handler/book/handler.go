@@ -19,15 +19,16 @@ func NewHandler(bookSvc book.Service, log *zap.Logger) *Handler {
 }
 
 type CreateBookRequest struct {
-	Title        string   `json:"title" binding:"required"`
-	Author       string   `json:"author" binding:"required"`
-	ISBN         string   `json:"isbn"`
-	CoverURL     string   `json:"cover_url"`
-	Description  string   `json:"description"`
-	Category     string   `json:"category"`
-	Tags         []string `json:"tags"`
-	Topics       []string `json:"topics"`
-	PhysicalCode string   `json:"physical_code"`
+	Title          string   `json:"title" binding:"required"`
+	Author         string   `json:"author" binding:"required"`
+	ISBN           string   `json:"isbn"`
+	CoverURL       string   `json:"cover_url"`
+	Description    string   `json:"description"`
+	Category       string   `json:"category"`
+	Tags           []string `json:"tags"`
+	Topics         []string `json:"topics"`
+	PhysicalCode   string   `json:"physical_code"`
+	MaxReadingDays int      `json:"max_reading_days"`
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -38,17 +39,25 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	userID := middleware.GetUserID(c)
+
+	// Default to 14 days if not provided
+	maxReadingDays := req.MaxReadingDays
+	if maxReadingDays <= 0 {
+		maxReadingDays = 14
+	}
+
 	book := &domain.Book{
-		Title:        req.Title,
-		Author:       req.Author,
-		ISBN:         req.ISBN,
-		CoverURL:     req.CoverURL,
-		Description:  req.Description,
-		Category:     req.Category,
-		Tags:         req.Tags,
-		Topics:       req.Topics,
-		PhysicalCode: req.PhysicalCode,
-		CreatedBy:    &userID,
+		Title:          req.Title,
+		Author:         req.Author,
+		ISBN:           req.ISBN,
+		CoverURL:       req.CoverURL,
+		Description:    req.Description,
+		Category:       req.Category,
+		Tags:           req.Tags,
+		Topics:         req.Topics,
+		PhysicalCode:   req.PhysicalCode,
+		MaxReadingDays: maxReadingDays,
+		CreatedBy:      &userID,
 	}
 
 	created, err := h.bookSvc.Create(c.Request.Context(), book)

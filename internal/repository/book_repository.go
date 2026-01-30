@@ -24,12 +24,12 @@ func NewBookRepository(db *sql.DB, log *zap.Logger) *BookRepository {
 func (r *BookRepository) Create(ctx context.Context, b *domain.Book) error {
 	query := `
 		INSERT INTO books (id, title, author, isbn, cover_url, description, category, 
-		                   tags, topics, physical_code, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		                   tags, topics, physical_code, status, max_reading_days, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`
 	_, err := r.db.ExecContext(ctx, query,
 		b.ID, b.Title, b.Author, b.ISBN, b.CoverURL, b.Description, b.Category,
-		pq.Array(b.Tags), pq.Array(b.Topics), b.PhysicalCode, b.Status,
+		pq.Array(b.Tags), pq.Array(b.Topics), b.PhysicalCode, b.Status, b.MaxReadingDays,
 		b.CreatedAt, b.UpdatedAt)
 	return err
 }
@@ -40,7 +40,7 @@ func (r *BookRepository) FindByID(ctx context.Context, id string) (*domain.Book,
 		SELECT id, title, author, COALESCE(isbn, ''), COALESCE(cover_url, ''),
 		       COALESCE(description, ''), COALESCE(category, ''),
 		       COALESCE(tags, '{}'), COALESCE(topics, '{}'),
-		       COALESCE(physical_code, ''), status, current_holder_id,
+		       COALESCE(physical_code, ''), status, COALESCE(max_reading_days, 14), current_holder_id,
 		       COALESCE(is_donated, false), COALESCE(total_reads, 0),
 		       COALESCE(average_rating, 0), created_at, updated_at
 		FROM books WHERE id = $1
@@ -48,7 +48,7 @@ func (r *BookRepository) FindByID(ctx context.Context, id string) (*domain.Book,
 	var currentHolderID sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&b.ID, &b.Title, &b.Author, &b.ISBN, &b.CoverURL, &b.Description, &b.Category,
-		pq.Array(&b.Tags), pq.Array(&b.Topics), &b.PhysicalCode, &b.Status,
+		pq.Array(&b.Tags), pq.Array(&b.Topics), &b.PhysicalCode, &b.Status, &b.MaxReadingDays,
 		&currentHolderID, &b.IsDonated, &b.TotalReads, &b.AverageRating,
 		&b.CreatedAt, &b.UpdatedAt)
 	if err == sql.ErrNoRows {
