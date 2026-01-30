@@ -200,3 +200,22 @@ func (r *BookRepository) FindRequestByBookAndUser(ctx context.Context, bookID, u
 
 	return req, nil
 }
+
+func (r *BookRepository) CancelRequest(ctx context.Context, bookID, userID string) error {
+	query := `DELETE FROM book_requests WHERE book_id = $1 AND user_id = $2 AND status = 'pending'`
+	result, err := r.db.ExecContext(ctx, query, bookID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+
+	return nil
+}

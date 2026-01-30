@@ -155,6 +155,18 @@ func (h *Handler) CheckBookRequested(c *gin.Context) {
 	response.Success(c, gin.H{"requested": requested})
 }
 
+func (h *Handler) CancelRequest(c *gin.Context) {
+	id := c.Param("id")
+	userID := middleware.GetUserID(c)
+
+	if err := h.bookSvc.CancelRequest(c.Request.Context(), id, userID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "request cancelled"})
+}
+
 func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 	books := r.Group("/books")
 	{
@@ -164,6 +176,7 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 		books.PATCH("/:id", h.Update)
 		books.DELETE("/:id", h.Delete)
 		books.POST("/:id/request", h.RequestBook)
+		books.DELETE("/:id/request", h.CancelRequest)
 		books.GET("/:id/requested", h.CheckBookRequested)
 	}
 

@@ -67,3 +67,25 @@ func (s *service) CheckBookRequested(ctx context.Context, bookID, userID string)
 	}
 	return request != nil, nil
 }
+
+func (s *service) CancelRequest(ctx context.Context, bookID, userID string) error {
+	// Check if request exists
+	request, err := s.bookRepo.FindRequestByBookAndUser(ctx, bookID, userID)
+	if err != nil {
+		s.log.Error("failed to find book request", zap.String("book_id", bookID), zap.String("user_id", userID), zap.String("error", err.Error()))
+		return err
+	}
+
+	if request == nil {
+		s.log.Warn("no pending request found to cancel", zap.String("book_id", bookID), zap.String("user_id", userID))
+		return domain.ErrNotFound
+	}
+
+	if err := s.bookRepo.CancelRequest(ctx, bookID, userID); err != nil {
+		s.log.Error("failed to cancel book request", zap.String("book_id", bookID), zap.String("user_id", userID), zap.String("error", err.Error()))
+		return err
+	}
+
+	s.log.Info("book request cancelled", zap.String("book_id", bookID), zap.String("user_id", userID))
+	return nil
+}
