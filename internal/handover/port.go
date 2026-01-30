@@ -36,6 +36,7 @@ type Service interface {
 type HandoverRepo interface {
 	// Reading history operations
 	GetActiveReadingHistory(ctx context.Context, bookID string) (*domain.ReadingHistoryExtended, error)
+	GetLastCompletedReadingHistory(ctx context.Context, bookID string) (*domain.ReadingHistoryExtended, error)
 	UpdateReadingHistoryCompleted(ctx context.Context, historyID string, completedAt time.Time) error
 	UpdateReadingHistoryDeliveryStatus(ctx context.Context, historyID string, status domain.DeliveryStatus, deliveredAt *time.Time) error
 	GetReadingHistoriesDueSoon(ctx context.Context, daysThreshold int) ([]*domain.ReadingHistoryExtended, error)

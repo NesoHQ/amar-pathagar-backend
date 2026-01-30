@@ -34,6 +34,7 @@ const (
 	StatusReading   BookStatus = "reading"
 	StatusReserved  BookStatus = "reserved"
 	StatusRequested BookStatus = "requested"
+	StatusOnHold    BookStatus = "on_hold"
 )
 
 type ReadingHistory struct {

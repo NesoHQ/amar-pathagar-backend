@@ -64,12 +64,33 @@ func (s *service) MarkBookCompleted(ctx context.Context, userID, bookID string) 
 		}
 	} else {
 		// No next reader, close reading history and mark book as available
+		// Book becomes available for new requests
 		if err := s.handoverRepo.CloseReadingHistory(ctx, history.ID, completedAt); err != nil {
 			s.log.Error("failed to close reading history", zap.Error(err))
 		}
 
 		if err := s.handoverRepo.UpdateBookStatus(ctx, bookID, domain.StatusAvailable); err != nil {
 			s.log.Error("failed to update book status to available", zap.Error(err))
+		}
+
+		// Close any active handover thread since there's no next reader
+		activeThread, err := s.handoverRepo.GetActiveHandoverThreadByBook(ctx, bookID)
+		if err == nil && activeThread != nil {
+			if err := s.handoverRepo.UpdateHandoverThreadStatus(ctx, activeThread.ID, domain.HandoverCompleted, &completedAt); err != nil {
+				s.log.Error("failed to complete handover thread", zap.Error(err))
+			} else {
+				// Post system message
+				systemMsg := &domain.HandoverMessage{
+					ThreadID:        activeThread.ID,
+					UserID:          userID,
+					Message:         "📚 Book reading completed. Book is now available for new requests.",
+					IsSystemMessage: true,
+					CreatedAt:       time.Now(),
+				}
+				if err := s.handoverRepo.CreateHandoverMessage(ctx, systemMsg); err != nil {
+					s.log.Error("failed to create system message", zap.Error(err))
+				}
+			}
 		}
 	}
 

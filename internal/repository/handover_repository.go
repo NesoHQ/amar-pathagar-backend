@@ -100,6 +100,66 @@ func (r *HandoverRepository) GetActiveReadingHistory(ctx context.Context, bookID
 	return history, nil
 }
 
+func (r *HandoverRepository) GetLastCompletedReadingHistory(ctx context.Context, bookID string) (*domain.ReadingHistoryExtended, error) {
+	query := `
+		SELECT 
+			rh.id, rh.book_id, rh.reader_id, rh.start_date, rh.end_date,
+			rh.due_date, rh.is_completed, rh.completed_at,
+			b.title, b.author, b.cover_url, b.status,
+			u.username, u.full_name, u.success_score
+		FROM reading_history rh
+		LEFT JOIN books b ON rh.book_id = b.id
+		LEFT JOIN users u ON rh.reader_id = u.id
+		WHERE rh.book_id = $1 AND rh.is_completed = true AND rh.end_date IS NOT NULL
+		ORDER BY rh.completed_at DESC
+		LIMIT 1
+	`
+
+	row := r.db.QueryRowContext(ctx, query, bookID)
+
+	history := &domain.ReadingHistoryExtended{
+		ReadingHistory: &domain.ReadingHistory{
+			Book:   &domain.Book{},
+			Reader: &domain.User{},
+		},
+	}
+
+	var dueDate, endDate, completedAt sql.NullTime
+	var coverURL sql.NullString
+
+	err := row.Scan(
+		&history.ID, &history.BookID, &history.ReaderID, &history.StartDate, &endDate,
+		&dueDate, &history.IsCompleted, &completedAt,
+		&history.Book.Title, &history.Book.Author, &coverURL, &history.Book.Status,
+		&history.Reader.Username, &history.Reader.FullName, &history.Reader.SuccessScore,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if dueDate.Valid {
+		history.DueDate = &dueDate.Time
+	}
+	if endDate.Valid {
+		history.EndDate = &endDate.Time
+	}
+	if completedAt.Valid {
+		history.CompletedAt = &completedAt.Time
+	}
+	if coverURL.Valid {
+		history.Book.CoverURL = coverURL.String
+	}
+
+	history.Book.ID = history.BookID
+	history.Reader.ID = history.ReaderID
+
+	return history, nil
+}
+
 func (r *HandoverRepository) UpdateReadingHistoryCompleted(ctx context.Context, historyID string, completedAt time.Time) error {
 	query := `
 		UPDATE reading_history 

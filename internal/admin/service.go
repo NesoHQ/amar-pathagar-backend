@@ -74,52 +74,76 @@ func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueD
 		}
 	}
 
-	// Update book status to "requested" (not "reading" yet)
-	// The book will be marked as "reading" when the first reader confirms delivery
+	// Get book details
+	book, err := s.adminRepo.GetBookByID(ctx, targetRequest.BookID)
+	if err != nil {
+		s.log.Error("failed to get book details", zap.Error(err))
+		return err
+	}
+
+	// Update book status to "requested"
 	if err := s.adminRepo.UpdateBookStatus(ctx, targetRequest.BookID, "requested"); err != nil {
 		s.log.Error("failed to update book status", zap.Error(err))
 		return err
 	}
 
-	// Don't create reading history or assign book yet
-	// This will be done when the first reader marks the book as delivered
+	// Determine who is the current holder
+	var currentHolderID string
 
-	// Get book details to find the creator/owner
-	book, err := s.adminRepo.GetBookByID(ctx, targetRequest.BookID)
-	if err != nil {
-		s.log.Error("failed to get book details", zap.Error(err))
-	} else if book.CreatedBy != nil && *book.CreatedBy != "" {
-		// Create initial handover thread between book owner and first reader
-		parsedDueDate, parseErr := time.Parse(time.RFC3339, dueDate)
-		if parseErr != nil {
-			s.log.Error("failed to parse due date", zap.Error(parseErr))
-		} else {
-			thread := &domain.HandoverThread{
-				BookID:          targetRequest.BookID,
-				CurrentHolderID: *book.CreatedBy,      // Book owner/admin
-				NextHolderID:    targetRequest.UserID, // First reader
-				Status:          string(domain.HandoverActive),
-				HandoverDueDate: parsedDueDate,
-				IsPublic:        true,
-				CreatedAt:       time.Now(),
-				UpdatedAt:       time.Now(),
-			}
-
-			if err := s.handoverRepo.CreateHandoverThread(ctx, thread); err != nil {
-				s.log.Error("failed to create initial handover thread", zap.Error(err))
+	if book.Status == domain.StatusAvailable {
+		// Book is available - check if someone read it before
+		lastHistory, err := s.handoverRepo.GetLastCompletedReadingHistory(ctx, targetRequest.BookID)
+		if err != nil || lastHistory == nil {
+			// No one has read it yet, use book creator
+			if book.CreatedBy != nil && *book.CreatedBy != "" {
+				currentHolderID = *book.CreatedBy
 			} else {
-				// Create system message
-				systemMsg := &domain.HandoverMessage{
-					ThreadID:        thread.ID,
-					UserID:          *book.CreatedBy,
-					Message:         fmt.Sprintf("📚 Book handover thread created. Please coordinate delivery of \"%s\" to the reader. Due date: %s", book.Title, parsedDueDate.Format("Jan 2, 2006")),
-					IsSystemMessage: true,
-					CreatedAt:       time.Now(),
-				}
-				if err := s.handoverRepo.CreateHandoverMessage(ctx, systemMsg); err != nil {
-					s.log.Error("failed to create system message", zap.Error(err))
-				}
+				return fmt.Errorf("cannot determine current holder")
 			}
+		} else {
+			// Someone read it before, they still have the physical book
+			currentHolderID = lastHistory.ReaderID
+		}
+	} else {
+		return fmt.Errorf("book is not available for request")
+	}
+
+	// Create handover thread between current holder and new requester
+	parsedDueDate, parseErr := time.Parse(time.RFC3339, dueDate)
+	if parseErr != nil {
+		s.log.Error("failed to parse due date", zap.Error(parseErr))
+		parsedDueDate = time.Now().AddDate(0, 0, 14) // Default 14 days
+	}
+
+	thread := &domain.HandoverThread{
+		BookID:          targetRequest.BookID,
+		CurrentHolderID: currentHolderID,
+		NextHolderID:    targetRequest.UserID,
+		Status:          string(domain.HandoverActive),
+		HandoverDueDate: parsedDueDate,
+		IsPublic:        true,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if err := s.handoverRepo.CreateHandoverThread(ctx, thread); err != nil {
+		s.log.Error("failed to create handover thread", zap.Error(err))
+	} else {
+		// Create system message
+		systemMsg := &domain.HandoverMessage{
+			ThreadID:        thread.ID,
+			UserID:          currentHolderID,
+			Message:         fmt.Sprintf("📚 Book handover thread created. Please coordinate delivery of \"%s\" to the reader. Due date: %s", book.Title, parsedDueDate.Format("Jan 2, 2006")),
+			IsSystemMessage: true,
+			CreatedAt:       time.Now(),
+		}
+		if err := s.handoverRepo.CreateHandoverMessage(ctx, systemMsg); err != nil {
+			s.log.Error("failed to create system message", zap.Error(err))
+		}
+
+		// Notify both users
+		if err := s.notificationSvc.NotifyHandoverThreadCreated(ctx, currentHolderID, targetRequest.UserID, targetRequest.BookID, book.Title); err != nil {
+			s.log.Error("failed to send notifications", zap.Error(err))
 		}
 	}
 
@@ -133,7 +157,7 @@ func (s *service) ApproveBookRequest(ctx context.Context, requestID string, dueD
 		s.log.Error("failed to send notification", zap.Error(err))
 	}
 
-	s.log.Info("book request approved", zap.String("request_id", requestID))
+	s.log.Info("book request approved", zap.String("request_id", requestID), zap.String("book_status", string(book.Status)))
 	return nil
 }
 

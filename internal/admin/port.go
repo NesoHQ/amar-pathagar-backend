@@ -47,6 +47,7 @@ type AdminRepo interface {
 type HandoverRepo interface {
 	CreateHandoverThread(ctx context.Context, thread *domain.HandoverThread) error
 	CreateHandoverMessage(ctx context.Context, message *domain.HandoverMessage) error
+	GetLastCompletedReadingHistory(ctx context.Context, bookID string) (*domain.ReadingHistoryExtended, error)
 }
 
 type SystemStats struct {
